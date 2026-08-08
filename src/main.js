@@ -76,7 +76,7 @@ function frame(dt) {
   simTime += simDt;
 
   input.update();
-  runner.update(dt, simDt, simTime, input, rig.yaw + input.orbitYaw);
+  runner.update(simDt, simTime, input, rig.yaw + input.orbitYaw);
   rig.update(dt, runner, input);
   particles.update(simDt, simTime, runner);
   trail.update(simTime, runner);
@@ -103,6 +103,7 @@ window.__app = {
   runner,
   particles,
   trail,
+  rig,
   input,
   params,
   applyParams,

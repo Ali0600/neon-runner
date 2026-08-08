@@ -1,0 +1,92 @@
+# Design decisions
+
+## Backlog — alternatives worth trying later
+
+- **GPGPU ping-pong particles** (D1) — needed the moment particles must react to
+  forces (attractors, vortices, collisions) rather than fly a fixed arc.
+  *Revisit hook:* `src/shaders/particles.vert.glsl` computes position from
+  `aSpawn`/`aVel`; swap that block for a state-texture fetch and add a
+  `GPUComputationRenderer` step. The ring-buffer emitter and the billboard math
+  are reusable as-is.
+- **pmndrs `postprocessing`** (D2) — merged-pass rendering and finer bloom
+  controls. *Revisit hook:* `src/post.js` is the only file that knows about the
+  composer; its `{ render, setSize, applyParams }` shape is the seam.
+- **Skinned/rigged runner** (D8) — the current figure is a joint hierarchy of
+  capsules. *Revisit hook:* `createRunner` in `src/runner.js` builds the joints
+  and drives them in one block.
+
+---
+
+## D1 — Stateless analytic particles, not GPGPU ping-pong
+
+**Fork:** compute each particle's position in the vertex shader as a closed-form
+function of `uTime - spawnTime`, or advect positions through a ping-pong
+framebuffer with `GPUComputationRenderer`.
+
+- *Analytic:* no state textures, no float-FBO plumbing, and pause/slow-mo/scrub
+  are free — position depends only on sim time. Cannot express feedback forces.
+- *GPGPU:* arbitrary per-step forces and inter-particle interaction. Costs two
+  render targets, a compute pass, and makes time scrubbing a re-simulation.
+
+**Chosen:** analytic. The Second Son look is ballistic — spawn, drag, drift, die
+— which has an exact closed form, so the extra machinery buys nothing yet. The
+`timeScale = 0` freeze test (frame is pixel-identical while paused) only works
+because of this property.
+
+**Status of alternative:** `deferred — worth trying`.
+
+## D2 — three.js built-in EffectComposer, not pmndrs `postprocessing`
+
+- *Built-in addons:* zero extra dependency, version-locked to three, and
+  `UnrealBloomPass`'s mip-chain bloom is exactly the soft neon halo wanted.
+- *pmndrs:* better performance via merged passes, more bloom control, one more
+  dependency to track against three's release cadence.
+
+**Chosen:** built-in. Measured 411 fps at default settings, so bloom is nowhere
+near the bottleneck.
+
+**Status of alternative:** `deferred — worth trying` if bloom ever measures hot.
+
+## D3 — Instanced stretched quads, not `gl.POINTS`
+
+- *Points:* one vertex per particle, cheapest possible.
+- *Quads:* 4 verts + 2 triangles per particle, but can be oriented and stretched.
+
+**Chosen:** quads. `gl.POINTS` are axis-aligned screen squares and **cannot be
+stretched along velocity** — the streak is the entire visual identity here, so
+points were never actually viable.
+
+**Status of alternative:** `rejected — cannot express the required look`.
+
+## D4 — Trail is a ribbon mesh *and* particles, not particles alone
+
+- *Particles alone:* one system to tune.
+- *Ribbon + particles:* the ribbon gives a continuous light core, particles give
+  texture around it.
+
+**Chosen:** both. At sprint speed the runner covers ~0.28 world units per frame,
+so particles alone leave visible gaps in the core of the trail.
+
+**Status of alternative:** `rejected — gaps at speed`.
+
+## D5 — Sim clock separate from the real clock
+
+**Fork:** scale one clock and feed everything from it, or keep a real-time
+delta for presentation and a scaled delta for simulation.
+
+**Chosen:** two clocks, with a deliberate split — **everything in the runner and
+particle systems reads the sim clock; only the camera rig reads real time.**
+That makes `timeScale = 0` a true freeze while still letting the user orbit and
+inspect frozen streaks.
+
+This split was not free: the first implementation had the runner's autopilot,
+velocity easing and dissolve ramp on real time, so a "paused" scene kept
+drifting. See `docs/learnings.md`.
+
+## D6 — Bundled lil-gui, `?raw` GLSL, plain JS
+
+Minor forks, recorded for completeness: lil-gui ships inside three
+(`three/addons/libs/lil-gui.module.min.js`) so no separate dependency; shaders
+are real `.glsl` files imported with Vite's built-in `?raw` (syntax highlighting
+without `vite-plugin-glsl`, whose only added feature is `#include`); plain JS
+because the complexity lives in GLSL, where TypeScript adds nothing.

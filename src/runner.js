@@ -134,14 +134,19 @@ export function createRunner(params) {
     emitPoints: emitters.map(() => new THREE.Vector3()),
   };
 
-  runner.update = function update(dt, simDt, simTime, input, cameraYaw) {
+  // Everything here advances on the SIM clock, never real time. Position alone
+  // freezing at timeScale 0 is not a pause: the autopilot target, the velocity
+  // easing and the dissolve ramp would keep drifting and the frame would still
+  // change. Only the camera rig stays on real time, so a frozen scene can be
+  // orbited and inspected.
+  runner.update = function update(simDt, simTime, input, cameraYaw) {
     let mx = input.moveVec.x;
     let my = input.moveVec.y;
     const sprint = input.sprint || params.forceSprint;
 
     if (params.autopilot) {
       // Lissajous figure-8 — deterministic motion for headless screenshots.
-      runner.autopilotT += dt;
+      runner.autopilotT += simDt;
       const t = runner.autopilotT * 0.45;
       _target.set(Math.sin(t) * 34, 0, Math.sin(t * 2) * 20);
       _fwd.copy(_target).sub(group.position);
@@ -162,7 +167,7 @@ export function createRunner(params) {
     _target.multiplyScalar(sprint ? SPRINT_SPEED : WALK_SPEED);
 
     // Framerate-independent exponential approach to the target velocity.
-    runner.velocity.lerp(_target, 1 - Math.exp(-ACCEL * dt));
+    runner.velocity.lerp(_target, 1 - Math.exp(-ACCEL * simDt));
     if (runner.velocity.lengthSq() < 1e-4) runner.velocity.set(0, 0, 0);
 
     group.position.addScaledVector(runner.velocity, simDt);
@@ -177,7 +182,7 @@ export function createRunner(params) {
       // Shortest-arc yaw: a naive lerp spins the long way round through +-PI.
       let delta = wanted - runner.yaw;
       delta = Math.atan2(Math.sin(delta), Math.cos(delta));
-      runner.yaw += delta * (1 - Math.exp(-10 * dt));
+      runner.yaw += delta * (1 - Math.exp(-10 * simDt));
       group.rotation.y = runner.yaw;
     }
 
@@ -187,7 +192,7 @@ export function createRunner(params) {
       0,
       1
     );
-    runner.dissolve += (wantDissolve - runner.dissolve) * (1 - Math.exp(-6 * dt));
+    runner.dissolve += (wantDissolve - runner.dissolve) * (1 - Math.exp(-6 * simDt));
 
     // --- run cycle ---
     // Phase advances with DISTANCE, not time, so the stride always matches the

@@ -1,0 +1,74 @@
+# Learnings
+
+## Stateless (analytic) particles
+
+Instead of storing each particle's current position and integrating it every
+frame, store only its *initial conditions* (spawn point, spawn time, velocity,
+lifetime) and compute the current position in the vertex shader as a closed-form
+function of `age = uTime - spawnTime`.
+
+**Why it came up:** it is what lets 65,000 particles run with the CPU touching
+only the few hundred slots spawned this frame — and what makes pause and slow-mo
+exact, since nothing accumulates error over time.
+
+**Takeaway:** if a particle's motion has a closed form, don't simulate it — the
+GPU can evaluate the formula cheaper than you can store the state.
+
+## Ring buffer + partial attribute uploads
+
+A fixed-capacity buffer with a moving write head, sized so that
+`capacity >= maxSpawnRate * maxLifetime`. Because a particle is guaranteed dead
+by the time the head laps back to its slot, there is no free list and no
+compaction — you just overwrite.
+
+**Why it came up:** re-uploading a 65k-particle attribute buffer every frame is
+~2.4 MB of traffic per attribute. Uploading only the spawned slice is ~7 KB.
+
+**Takeaway:** `BufferAttribute.addUpdateRange(start, count)` takes **component**
+offsets (item index × itemSize), not item indices, and you can call it twice in
+one frame — which is exactly what a wrapped ring write needs. three clears the
+ranges itself after upload.
+
+## Additive blending destroys colour before it destroys brightness
+
+Thousands of additive sprites sum toward white long before any single one looks
+bright. The first build had a vivid magenta/cyan palette that rendered as a flat
+white blob.
+
+**Why it came up:** the fix was not fewer particles — it was making each one
+dimmer and narrower, and restricting the white-hot core to `pow(shape, 8.0)`
+instead of `pow(shape, 3.0)`, so only the true centre of a streak whitens.
+
+**Takeaway:** with additive blending, per-particle intensity is the knob, not
+particle count. If the palette is washing out, dim the sprite before you thin the
+crowd.
+
+## Exponential easing never arrives
+
+`pos += (target - pos) * (1 - exp(-k * dt))` is the standard framerate-
+independent smoothing, and it is *asymptotic* — the remaining distance shrinks
+forever but never reaches zero.
+
+**Why it came up:** the `timeScale = 0` freeze test compared two rendered frames
+and they differed. The simulation was genuinely frozen; the camera was still
+creeping by ~3 × 10⁻⁵ units per frame, which is invisible but flips low-order
+pixel bits.
+
+**Takeaway:** any easing that should eventually *settle* needs an epsilon snap.
+Without one, "at rest" is a state your system never actually enters.
+
+## A hidden browser tab does not run requestAnimationFrame
+
+`renderer.setAnimationLoop` is rAF-backed, and browsers throttle rAF to zero in a
+backgrounded or hidden tab. Every headless verification of this project initially
+reported `speed: 0` and an unmoving runner, which looked exactly like a broken
+movement system.
+
+**Why it came up:** the tell was `document.hidden === true` plus a frame counter
+that never advanced. The fix was to factor the loop body into `frame(dt)` and
+expose `__app.step(count, dt)`, so verification drives frames directly.
+
+**Takeaway:** anything you intend to verify headlessly needs an entry point that
+does not depend on the browser deciding to paint. That hook also makes the
+verification *deterministic* — fixed `dt`, exact frame counts — which is better
+than screenshotting real time anyway.
