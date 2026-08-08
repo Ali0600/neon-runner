@@ -16,21 +16,30 @@
       canvas {
         display: block;
       }
-      #hud {
+      #hud,
+      #score {
         position: fixed;
         left: 16px;
-        bottom: 14px;
         color: #7ce9ff;
-        font-size: 11px;
         letter-spacing: 0.14em;
         text-transform: uppercase;
-        opacity: 0.55;
         pointer-events: none;
         text-shadow: 0 0 12px rgba(37, 245, 255, 0.6);
+      }
+      #hud {
+        bottom: 14px;
+        font-size: 11px;
+        opacity: 0.55;
+      }
+      #score {
+        bottom: 36px;
+        font-size: 13px;
+        opacity: 0.9;
       }
     </style>
   </head>
   <body>
+    <div id="score"></div>
     <div id="hud">WASD move &nbsp;·&nbsp; SHIFT sprint &nbsp;·&nbsp; drag to orbit</div>
     <script type="module" src="/src/main.js"></script>
   </body>

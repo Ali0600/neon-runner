@@ -241,6 +241,65 @@ export function createParticleSystem(params) {
     _prev.copy(runner.position);
   };
 
+  /**
+   * Emit a one-off radial burst at a world position — pickups, impacts,
+   * anything that is not the runner. Writes into the same ring buffer as the
+   * continuous emitter, so a frame can contain both; three accumulates the
+   * update ranges from each call and clears them after upload.
+   *
+   * @param {{x:number,y:number,z:number}} pos
+   * @param {number} count
+   * @param {{ simTime:number, speed?:number, lifetime?:number, up?:number }} opts
+   */
+  system.emitBurst = function emitBurst(pos, count, opts) {
+    const cap = system.activeCapacity;
+    let n = Math.min(Math.floor(count), cap);
+    if (n <= 0) return 0;
+
+    const head = system.head;
+    const speed = opts.speed ?? 6;
+    const life = opts.lifetime ?? params.lifetime;
+    const up = opts.up ?? 1.2;
+    const simTime = opts.simTime;
+
+    for (let k = 0; k < n; k++) {
+      const idx = (head + k) % cap;
+      const o4 = idx * 4;
+
+      const th = Math.random() * Math.PI * 2;
+      const z = Math.random() * 2 - 1;
+      const r = Math.sqrt(Math.max(0, 1 - z * z));
+      // Shell-biased magnitude gives an expanding ring rather than a blob.
+      const mag = speed * (0.55 + Math.random() * 0.45);
+
+      aSpawn[o4] = pos.x;
+      aSpawn[o4 + 1] = pos.y;
+      aSpawn[o4 + 2] = pos.z;
+      aSpawn[o4 + 3] = simTime;
+
+      aVel[o4] = Math.cos(th) * r * mag;
+      aVel[o4 + 1] = z * mag * 0.7 + up;
+      aVel[o4 + 2] = Math.sin(th) * r * mag;
+      aVel[o4 + 3] = life * (0.6 + Math.random() * 0.6);
+
+      aSeed[idx] = Math.random();
+    }
+
+    for (const range of computeUpdateRanges(head, n, cap, 4)) {
+      spawnAttr.addUpdateRange(range.start, range.count);
+      velAttr.addUpdateRange(range.start, range.count);
+    }
+    for (const range of computeUpdateRanges(head, n, cap, 1)) {
+      seedAttr.addUpdateRange(range.start, range.count);
+    }
+    spawnAttr.needsUpdate = true;
+    velAttr.needsUpdate = true;
+    seedAttr.needsUpdate = true;
+
+    system.head = (head + n) % cap;
+    return n;
+  };
+
   system.applyParams = () => {
     const u = uniforms;
     u.uWidth.value = params.streakWidth;

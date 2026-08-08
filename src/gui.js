@@ -58,6 +58,10 @@ export function createGui(params, apply, stats) {
   post.add(params, 'exposure', 0.2, 2.5, 0.01).name('exposure').onChange(on);
   post.add(params, 'pixelRatio', 0.5, 2, 0.25).name('pixel ratio').onChange(on);
 
+  const g = gui.addFolder('Game');
+  g.add(params, 'game').name('pickups').onChange(on);
+  g.add(params, 'collectRadius', 0.5, 5, 0.1).name('collect radius');
+
   const sim = gui.addFolder('Sim');
   sim.add(params, 'timeScale', 0, 2, 0.01).name('time scale');
   sim.add(params, 'autopilot').name('autopilot');
