@@ -118,6 +118,7 @@ export function createTrail(params) {
   };
 
   trail.applyParams = () => {
+    mesh.visible = params.trailEnabled !== false;
     material.uniforms.uWidth.value = params.trailWidth;
     material.uniforms.uColorA.value.set(params.colorA);
     material.uniforms.uColorB.value.set(params.colorB);

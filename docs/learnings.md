@@ -57,6 +57,37 @@ pixel bits.
 **Takeaway:** any easing that should eventually *settle* needs an epsilon snap.
 Without one, "at rest" is a state your system never actually enters.
 
+## Additive and normal-blended particles in one scene need an explicit order
+
+Additive blending is order-independent (addition commutes), which is why the
+neon style never needed to think about draw order. The moment a normal-blended
+system joins it, order decides the image: smoke drawn *after* the embers would
+wash them out, drawn *before* them it correctly sits behind.
+
+**Why it came up:** smoke mode renders the same instance buffer twice — ember
+material additive, smoke material normal-blended — so the two passes had to be
+explicitly ordered with `renderOrder` (smoke 0, everything additive 1) rather
+than left to three's distance sort.
+
+**Takeaway:** as soon as one transparent system in a scene is not additive, draw
+order is part of the design and belongs in code, not left to the default sort.
+
+## Check what a debug property actually means before trusting it
+
+Diagnosing invisible smoke, I read `material.program` on the smoke material, got
+`false`, and had a ready explanation: the shader never compiled. It was wrong —
+the property simply is not the live per-render handle. Toggling `mesh.visible`
+and diffing `renderer.info.render` showed +1 draw call and +60,000 triangles:
+the smoke was drawing perfectly and was just too dark to see against black.
+
+**Why it came up:** the false negative was *plausible* and pointed at a
+completely different fix (shader compilation) than the real one (colour values).
+
+**Takeaway:** a debug property that reports a failure is a claim like any other.
+Confirm the instrument can report success before you act on its negative —
+measuring the observable effect (draw calls, triangles, pixels) beats reading an
+internal that may not mean what its name suggests.
+
 ## A hidden browser tab does not run requestAnimationFrame
 
 `renderer.setAnimationLoop` is rAF-backed, and browsers throttle rAF to zero in a

@@ -38,43 +38,87 @@ export function createParticleSystem(params) {
   geometry.setAttribute('aVel', velAttr);
   geometry.setAttribute('aSeed', seedAttr);
 
-  const material = new THREE.ShaderMaterial({
-    vertexShader,
-    fragmentShader,
-    uniforms: {
-      uTime: { value: 0 },
-      uWidth: { value: params.streakWidth },
-      uLength: { value: params.streakLength },
-      uStretch: { value: params.streakStretch },
-      uWobble: { value: params.wobble },
-      uRise: { value: params.riseBias },
-      uDrag: { value: params.drag },
-      uIntensity: { value: params.streakIntensity },
-      uColorA: { value: new THREE.Color(params.colorA) },
-      uColorB: { value: new THREE.Color(params.colorB) },
-      uColorC: { value: new THREE.Color(params.colorC) },
-    },
-    transparent: true,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false,
-    depthTest: true,
-  });
+  // One uniforms object shared by every material: all three render the same
+  // instance buffer with the same motion, so they must never disagree about it.
+  const uniforms = {
+    uTime: { value: 0 },
+    uWidth: { value: params.streakWidth },
+    uLength: { value: params.streakLength },
+    uStretch: { value: params.streakStretch },
+    uWobble: { value: params.wobble },
+    uRise: { value: params.riseBias },
+    uDrag: { value: params.drag },
+    uIntensity: { value: params.streakIntensity },
+    uSmokeRatio: { value: 0 },
+    uGrow: { value: params.smokeGrow },
+    uSmokeOpacity: { value: params.smokeOpacity },
+    uColorA: { value: new THREE.Color(params.colorA) },
+    uColorB: { value: new THREE.Color(params.colorB) },
+    uColorC: { value: new THREE.Color(params.colorC) },
+    uSmokeColor: { value: new THREE.Color(params.smokeColor) },
+  };
 
-  const mesh = new THREE.Mesh(geometry, material);
+  // Kinds differ in blending, which is a material property — a runtime uniform
+  // branch could not express smoke at all. Built once at startup so switching
+  // style never stalls on a shader compile.
+  function makeMaterial(kind, blending) {
+    return new THREE.ShaderMaterial({
+      vertexShader,
+      fragmentShader,
+      uniforms,
+      defines: { [kind]: '' },
+      transparent: true,
+      blending,
+      depthWrite: false,
+      depthTest: true,
+    });
+  }
+
+  const materials = {
+    streak: makeMaterial('KIND_STREAK', THREE.AdditiveBlending),
+    ember: makeMaterial('KIND_EMBER', THREE.AdditiveBlending),
+    smoke: makeMaterial('KIND_SMOKE', THREE.NormalBlending),
+  };
+
   // Positions are computed in the vertex shader, so CPU-side bounds are
   // meaningless and would cull the whole system.
+  const mesh = new THREE.Mesh(geometry, materials.streak);
   mesh.frustumCulled = false;
+  mesh.renderOrder = 1;
+
+  // Second mesh over the SAME geometry: smoke needs its own draw call for the
+  // blend mode, not its own particles. renderOrder puts it under every additive
+  // system so embers and glow composite on top of the wisps.
+  const smokeMesh = new THREE.Mesh(geometry, materials.smoke);
+  smokeMesh.frustumCulled = false;
+  smokeMesh.renderOrder = 0;
+  smokeMesh.visible = false;
 
   const system = {
     mesh,
-    material,
+    smokeMesh,
+    materials,
+    material: materials.streak,
+    uniforms,
     geometry,
     capacity: CAPACITY,
     head: 0,
     accum: 0,
     activeCapacity: 0,
     spawnedLastFrame: 0,
+    style: 'neon',
     _prevValid: false,
+  };
+
+  system.setStyle = function setStyle(style) {
+    system.style = style;
+    const smoke = style === 'smoke';
+    mesh.material = smoke ? materials.ember : materials.streak;
+    system.material = mesh.material;
+    smokeMesh.visible = smoke;
+    // Only the smoke style partitions the buffer; in neon every instance is a
+    // streak, so the ratio must be zero or the streak mesh would drop instances.
+    uniforms.uSmokeRatio.value = smoke ? params.smokeRatio : 0;
   };
 
   function setActiveCapacity(n) {
@@ -96,7 +140,7 @@ export function createParticleSystem(params) {
    * @param {number} simTime sim-clock time; particle ages are measured in it
    */
   system.update = function update(simDt, simTime, runner) {
-    material.uniforms.uTime.value = simTime;
+    uniforms.uTime.value = simTime;
 
     if (params.maxParticles !== system.activeCapacity) {
       setActiveCapacity(params.maxParticles);
@@ -198,7 +242,7 @@ export function createParticleSystem(params) {
   };
 
   system.applyParams = () => {
-    const u = material.uniforms;
+    const u = uniforms;
     u.uWidth.value = params.streakWidth;
     u.uLength.value = params.streakLength;
     u.uStretch.value = params.streakStretch;
@@ -206,9 +250,13 @@ export function createParticleSystem(params) {
     u.uRise.value = params.riseBias;
     u.uDrag.value = params.drag;
     u.uIntensity.value = params.streakIntensity;
+    u.uGrow.value = params.smokeGrow;
+    u.uSmokeOpacity.value = params.smokeOpacity;
     u.uColorA.value.set(params.colorA);
     u.uColorB.value.set(params.colorB);
     u.uColorC.value.set(params.colorC);
+    u.uSmokeColor.value.set(params.smokeColor);
+    system.setStyle(params.style);
   };
 
   return system;

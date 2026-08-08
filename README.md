@@ -16,6 +16,11 @@ Then open http://localhost:5173. **WASD** to move, **hold Shift** to sprint,
 
 ## Features
 
+- **Two switchable styles** — **neon** (magenta/cyan light streaks) and
+  **smoke** (orange embers with normal-blended grey wisps), swapped live from
+  the panel. Both run on one emitter and one buffer: particle kinds are
+  compile-time `defines` over a shared shader pair, and smoke mode splits the
+  same instances between an additive ember pass and a normal-blended smoke pass.
 - **Analytic GPU particle engine** — 65,536-particle capacity; each particle's
   position is a closed-form function of its age, evaluated in the vertex shader.
   The CPU writes only newly spawned slots.
@@ -66,8 +71,12 @@ npm test
 ```
 
 Covers the ring-buffer range mapping — wraparound, exact boundaries, oversized
-writes, and the invariant that no range ever exceeds the buffer. Verified
-fail-first: disabling the wraparound branch turns the suite red.
+writes, and the invariant that no range ever exceeds the buffer — plus the style
+presets: every preset must define every style key, and a switch must never
+clobber engine-owned settings like capacity or time scale.
+
+Both suites are verified fail-first: disabling the wraparound branch turns the
+range tests red, and deleting one key from a preset turns the style tests red.
 
 ## CI/CD
 
