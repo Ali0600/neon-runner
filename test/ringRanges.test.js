@@ -49,3 +49,10 @@ describe('computeUpdateRanges', () => {
     }
   });
 });
+
+// TEMPORARY: proves the CI check actually fails on a red suite. Reverted before merge.
+describe('CI gate proof', () => {
+  it('deliberately fails', () => {
+    expect(computeUpdateRanges(0, 1, 100, 4)).toEqual([{ start: 999, count: 999 }]);
+  });
+});
