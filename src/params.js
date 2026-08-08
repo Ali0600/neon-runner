@@ -18,6 +18,12 @@ export const params = {
   trailSamples: 110,
   pixelRatio: Math.min(window.devicePixelRatio || 1, 2),
 
+  // --- game ---
+  game: true,
+  // Generous next to the runner's ~0.28 u per frame at sprint, but collection
+  // is swept rather than point-sampled, so this is about feel, not tunnelling.
+  collectRadius: 1.6,
+
   // --- sim ---
   timeScale: 1.0,
 

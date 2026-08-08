@@ -16,6 +16,12 @@ Then open http://localhost:5173. **WASD** to move, **hold Shift** to sprint,
 
 ## Features
 
+- **Ambient scoring loop** — glowing rings scattered across the field, collected
+  by running through them, each firing a 260-particle burst through the same
+  ring buffer as the runner's emission. A combo multiplier climbs while
+  sprinting and decays when you slow; best combo and lifetime score persist to
+  `localStorage`. Collection is swept along the path travelled, not sampled at
+  the frame position, so nothing is missed at sprint speed.
 - **Two switchable styles** — **neon** (magenta/cyan light streaks) and
   **smoke** (orange embers with normal-blended grey wisps), swapped live from
   the panel. Both run on one emitter and one buffer: particle kinds are
@@ -70,13 +76,19 @@ trying; `docs/learnings.md` covers the transferable concepts.
 npm test
 ```
 
-Covers the ring-buffer range mapping — wraparound, exact boundaries, oversized
-writes, and the invariant that no range ever exceeds the buffer — plus the style
-presets: every preset must define every style key, and a switch must never
-clobber engine-owned settings like capacity or time scale.
+38 tests over the three pure modules:
 
-Both suites are verified fail-first: disabling the wraparound branch turns the
-range tests red, and deleting one key from a preset turns the style tests red.
+- **ring buffer ranges** — wraparound, exact boundaries, oversized writes, and
+  the invariant that no range ever exceeds the buffer.
+- **style presets** — every preset defines every style key, and a switch never
+  clobbers engine-owned settings like capacity or time scale.
+- **game logic** — seeded placement, swept collection, combo growth and decay,
+  scoring.
+
+Every suite is verified fail-first: disabling the wraparound branch turns the
+range tests red, deleting one key from a preset turns the style tests red, and
+the collection tests were written against a point-distance implementation and
+watched to fail on the tunnelling case before the swept version was written.
 
 ## CI/CD
 
@@ -114,3 +126,7 @@ confirming the expected commit is in it, not checking a status code.
   red suite before trusting a green one, and verified each release by asserting
   the deployed commit SHA is present in the served bundle rather than relying on
   an HTTP status code.
+- Isolated game rules into dependency-free pure modules (seeded PRNG placement,
+  swept-segment collision, framerate-independent combo decay) to make gameplay
+  behaviour unit-testable without a renderer, and identified a frame-rate-
+  dependent collision defect by writing the failing case before the fix.

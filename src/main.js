@@ -7,6 +7,7 @@ import { createRunner } from './runner.js';
 import { createCameraRig } from './camera.js';
 import { createParticleSystem } from './particles/ParticleSystem.js';
 import { createTrail } from './trail/Trail.js';
+import { createGame } from './game/Game.js';
 import { createPost } from './post.js';
 import { createGui } from './gui.js';
 
@@ -33,6 +34,9 @@ const trail = createTrail(params);
 trail.mesh.renderOrder = 1; // additive systems composite over the smoke layer
 scene.add(trail.mesh);
 
+const game = createGame(params, particles);
+scene.add(game.mesh);
+
 const rig = createCameraRig(camera);
 const post = createPost(renderer, scene, camera, params);
 
@@ -45,6 +49,7 @@ function applyParams() {
   runner.applyParams();
   particles.applyParams();
   trail.applyParams();
+  game.applyParams();
   post.applyParams();
   renderer.setPixelRatio(params.pixelRatio);
   onResize();
@@ -80,6 +85,9 @@ function frame(dt) {
   input.update();
   runner.update(simDt, simTime, input, rig.yaw + input.orbitYaw);
   rig.update(dt, runner, input);
+  // Before the emitter, so a collection burst this frame ships in the same
+  // buffer upload as the runner's continuous emission.
+  game.update(simDt, simTime, runner);
   particles.update(simDt, simTime, runner);
   trail.update(simTime, runner);
 
@@ -105,6 +113,7 @@ window.__app = {
   runner,
   particles,
   trail,
+  game,
   rig,
   input,
   params,

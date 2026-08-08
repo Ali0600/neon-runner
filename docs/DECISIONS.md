@@ -83,6 +83,39 @@ This split was not free: the first implementation had the runner's autopilot,
 velocity easing and dissolve ramp on real time, so a "paused" scene kept
 drifting. See `docs/learnings.md`.
 
+## D14 — Swept segment collection, not a point-radius test
+
+**Fork:** detect pickup collection by testing the runner's position against each
+pickup each frame, or by testing the whole segment travelled since last frame.
+
+- *Point test:* one distance check per pickup. At 17 u/s the runner advances
+  ~0.28 units per frame and far more on a slow frame, so a pickup can sit
+  between two consecutive positions with **both** of them outside the radius —
+  it is passed straight through and becomes uncollectable exactly when the
+  player is going fast enough to care.
+- *Swept test:* closest point on the segment instead. Same cost class (one
+  clamped projection per pickup, ~28 pickups), and immune to frame rate.
+
+**Chosen:** swept. The alternative fix — inflating the radius until tunnelling
+stops — makes pickups feel magnetic at walking speed and still fails on a
+long frame.
+
+**Status of alternative:** `rejected — frame-rate-dependent misses`. Pinned by a
+test that fails against a point-distance implementation.
+
+## D15 — The autopilot ignores pickups; pickups are seeded onto its path
+
+**Fork:** let the debug autopilot steer toward the nearest pickup (a livelier
+demo), or leave it flying its fixed figure-8.
+
+**Chosen:** leave it. The autopilot is the verification workhorse — every
+headless screenshot and freeze check drives it — and coupling its steering to
+mutable game state would make those checks depend on game tuning. Seeding six
+pickups at fixed points on the Lissajous curve gives the demo its collections
+for free, with no feedback loop.
+
+**Status of alternative:** `rejected — would couple verification to game tuning`.
+
 ## D11 — Particle kinds as compile-time defines over three prebuilt materials
 
 **Fork:** support a second visual style (smoke & embers) by branching on a

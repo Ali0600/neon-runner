@@ -57,6 +57,25 @@ pixel bits.
 **Takeaway:** any easing that should eventually *settle* needs an epsilon snap.
 Without one, "at rest" is a state your system never actually enters.
 
+## Discrete-time collision needs the path, not the position
+
+A per-frame "is the player within radius of the target" check silently assumes
+the player cannot cross the target between two frames. That assumption breaks
+exactly when things get fast: at 17 units/second the runner moves ~0.28 units
+per frame, and a slow frame multiplies that. Both endpoints land outside a
+1.6-unit radius while the segment between them passes right through the middle.
+
+**Why it came up:** the fix is to test the swept segment (closest point on the
+line from last position to current) rather than the endpoint. Same cost, no
+frame-rate dependence. The tempting alternative — enlarging the radius until
+misses stop — trades a correctness bug for a feel bug and still fails on a
+long frame.
+
+**Takeaway:** anything sampled once per frame and compared against a threshold
+should ask "what if it crossed between samples?" — and the answer belongs in the
+test suite, because the bug only appears at speeds you may not hit while
+developing.
+
 ## Additive and normal-blended particles in one scene need an explicit order
 
 Additive blending is order-independent (addition commutes), which is why the
