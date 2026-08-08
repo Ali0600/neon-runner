@@ -2,15 +2,81 @@
 
 ## Backlog — alternatives worth trying later
 
-- **GPGPU ping-pong particles** (D1) — needed the moment particles must react to
-  forces (attractors, vortices, collisions) rather than fly a fixed arc.
-  *Revisit hook:* `src/shaders/particles.vert.glsl` computes position from
-  `aSpawn`/`aVel`; swap that block for a state-texture fetch and add a
-  `GPUComputationRenderer` step. The ring-buffer emitter and the billboard math
-  are reusable as-is.
 - **pmndrs `postprocessing`** (D2) — merged-pass rendering and finer bloom
   controls. *Revisit hook:* `src/post.js` is the only file that knows about the
   composer; its `{ render, setSize, applyParams }` shape is the seam.
+- **Heat-shimmer trail for smoke style** (D13) — needs a refraction post pass.
+- **Skinned/rigged runner** (D8) — the current figure is a joint hierarchy of
+  capsules. *Revisit hook:* `createRunner` in `src/runner.js` builds the joints
+  and drives them in one block.
+
+---
+
+## D1 (graduated) — GPGPU ping-pong alongside the analytic engine, not replacing it
+
+Originally deferred; **built in M8**. Both engines now ship, selectable at
+runtime, because neither dominates the other:
+
+- *Analytic* — position is a closed form of `(uTime - spawnTime)`. Exact pause
+  and scrub, no state textures, and the cost scales with the particles actually
+  alive. Cannot express any force that depends on where a particle currently is.
+- *GPGPU* — position and velocity live in ping-pong float textures integrated
+  each frame. Unlocks the feedback forces this milestone was for: a vortex
+  around the runner's recent path, a regather that pulls shed light home when
+  the runner stops, and spatial turbulence. Costs a fixed-size compute pass and
+  gives up exact scrubbing (Euler integration over a variable timestep).
+
+Measured (2560×1600, DPR 2): analytic **311 fps** at 30k and **151 fps** at 65k;
+GPGPU **152 fps** at 30k and **130 fps** at 65k. The GPGPU engine is roughly
+twice the cost at 30k but only ~14% more at 65k, because **its compute pass
+always covers all 65,536 texels regardless of how many particles are active** —
+it pays full simulation price for a partly empty buffer, while the analytic
+engine pays only for what is alive.
+
+`timeScale = 0` remains a true freeze in both: skipping `compute()` leaves the
+ping-pong index untouched, so the current targets stay bit-identical, and
+emission is already gated on the sim clock. Verified pixel-identical across all
+four engine × style combinations. What does *not* carry over is exact scrubbing
+— the analytic engine can jump to any time, the GPGPU engine can only step
+forward.
+
+**Anti-drift measure:** both engines share the fragment shader outright, share
+the billboard and sizing maths through `src/shaders/chunks/particleCommon.glsl`,
+and share spawn scheduling and initial conditions through
+`src/particles/spawnComputation.js`. Only the position source differs.
+
+## D16 — Spawn injection by points pass, not a staged texture upload
+
+**Fork:** get newly spawned particles into the state textures each frame.
+
+- *(a) Spawn-queue texture the compute shader consults:* re-uploads ~2 MB every
+  frame while sprinting — exactly the bandwidth the ring buffer exists to avoid
+  — and adds frame-stamp bookkeeping to every texel.
+- *(b) Staging `DataTexture` + `copyTextureToTexture` region copies:* uploads
+  only the spawned slots, but a wrapped ring range has to be decomposed into up
+  to three texel rectangles, and the destinations need `initRenderTarget()`.
+- *(c) Points pass:* render one 1-pixel point per spawned slot, positioned at
+  that slot's texel-centre NDC, straight into the live state target with
+  `autoClear` off.
+
+**Chosen:** (c). It uploads exactly the spawned slots — the same bandwidth
+profile as the analytic engine's partial buffer ranges — with no rectangle
+decomposition, reusing render machinery the project already relies on. Texel
+centres are computed as `(col + 0.5) / 256 * 2 - 1`, which is exact in fp32 and
+pinned by `test/slotUv.test.js`.
+
+**Status of alternatives:** (b) `deferred — viable fallback` if a driver ever
+misplaces point rasterization (the readback probe would catch it);
+(a) `rejected — defeats the purpose of a ring buffer`.
+
+## D17 — `maxParticles` clamps the GPGPU draw and spawn ring too
+
+The GPGPU geometry initially left `instanceCount` unset, so it always drew all
+65,536 instances and the max-particles slider silently did nothing in that
+engine — a control that lies is worse than a missing one. The draw and the spawn
+ring now honour it. The **compute** pass deliberately still covers the whole
+texture: its cost is fixed, and that is the honest performance story recorded
+above rather than something to hide.
 - **Skinned/rigged runner** (D8) — the current figure is a joint hierarchy of
   capsules. *Revisit hook:* `createRunner` in `src/runner.js` builds the joints
   and drives them in one block.

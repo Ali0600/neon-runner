@@ -18,6 +18,14 @@ export function createGui(params, apply, stats) {
       apply();
     });
 
+  gui.add(params, 'engine', ['analytic', 'gpgpu']).name('ENGINE').onChange(on);
+
+  const forces = gui.addFolder('Forces (gpgpu)');
+  forces.add(params, 'vortex', 0, 20, 0.1).name('trail vortex');
+  forces.add(params, 'turbulence', 0, 4, 0.05).name('turbulence');
+  forces.add(params, 'regather', 0, 12, 0.1).name('regather on stop');
+  forces.close();
+
   const emit = gui.addFolder('Emission');
   emit.add(params, 'maxParticles', 2000, CAPACITY, 1000).name('max particles').onChange(on);
   emit.add(params, 'walkRate', 0, 2000, 10).name('walk rate /s').onChange(on);
