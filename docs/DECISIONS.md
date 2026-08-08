@@ -83,6 +83,37 @@ This split was not free: the first implementation had the runner's autopilot,
 velocity easing and dissolve ramp on real time, so a "paused" scene kept
 drifting. See `docs/learnings.md`.
 
+## D9 — Pages base path from the build command, not an environment variable
+
+**Fork:** GitHub Pages serves a project site from `/<repo>/` while the dev
+server serves from `/`. Either key `base` off `command === 'build'`, off a
+custom env var set only in the deploy workflow, or use a relative `./`.
+
+- *Env var:* the deployable build becomes a different artifact from the one PR
+  CI checked — the deploy path is exercised exactly once, at deploy time.
+- *Relative `./`:* works today, but breaks silently the moment routing, workers
+  or dynamic imports from nested paths appear.
+- *`command === 'build'`:* every build anywhere — local, PR, deploy — produces
+  identical asset paths.
+
+**Chosen:** `command === 'build'`. What CI checked is byte-for-byte what ships.
+
+**Status of alternatives:** `rejected — splits the verified artifact from the shipped one`.
+
+## D10 — Deploy verification needs a marker, not a status code
+
+GitHub Pages answers unknown paths with HTTP 200 and a fallback page, so
+"the URL responded" is not evidence that anything deployed. The build stamps
+`GITHUB_SHA` into the bundle via Vite `define` (`__BUILD_SHA__`, surfaced as
+`__app.buildSha`), and verification fetches the hashed asset and greps for the
+expected commit.
+
+The same reasoning applies to the CI check itself: a passing check proves
+nothing until a failing one has been observed on that exact surface. Proven
+fail-first with a throwaway PR carrying a deliberately red assertion — the
+check went red at `npm test` (9 tests, 1 failed), and the PR was closed
+unmerged.
+
 ## D6 — Bundled lil-gui, `?raw` GLSL, plain JS
 
 Minor forks, recorded for completeness: lil-gui ships inside three

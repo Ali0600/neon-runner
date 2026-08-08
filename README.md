@@ -1,5 +1,7 @@
 # NEON RUNNER
 
+**[▶ Live demo](https://ali0600.github.io/neon-runner/)**
+
 A stylized real-time particle system in Three.js, inspired by the neon run in
 *inFamous: Second Son*. Sprint, and the figure erodes into tens of thousands of
 magenta and cyan light streaks trailing a glowing ribbon behind it.
@@ -67,6 +69,16 @@ Covers the ring-buffer range mapping — wraparound, exact boundaries, oversized
 writes, and the invariant that no range ever exceeds the buffer. Verified
 fail-first: disabling the wraparound branch turns the suite red.
 
+## CI/CD
+
+Pull requests run tests and a production build. Merges to `main` run the same
+checks and then deploy to GitHub Pages, with the deploy job gated on the build
+job via `needs:` so publishing waits for checks rather than racing them.
+
+The deploy stamps its commit SHA into the bundle, because Pages answers unknown
+paths with HTTP 200 — verifying a release means fetching the hashed asset and
+confirming the expected commit is in it, not checking a status code.
+
 ## Experience Gained
 
 - Designed and implemented a GPU-accelerated particle engine rendering 65k
@@ -86,3 +98,10 @@ fail-first: disabling the wraparound branch turns the suite red.
   pixel-identity assertion across frozen frames.
 - Profiled and tuned a real-time render pipeline against measured frame timings
   with GPU synchronization, rather than estimated throughput.
+- Built a CI/CD pipeline on GitHub Actions with least-privilege scoped
+  permissions, dependency caching, and a deployment job gated on the test and
+  build stages, publishing a live demo to GitHub Pages on every merge.
+- Validated the pipeline adversarially — confirmed the required check fails on a
+  red suite before trusting a green one, and verified each release by asserting
+  the deployed commit SHA is present in the served bundle rather than relying on
+  an HTTP status code.
