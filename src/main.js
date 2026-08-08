@@ -107,6 +107,7 @@ window.__app = {
   input,
   params,
   applyParams,
+  buildSha: __BUILD_SHA__,
   simTime: () => simTime,
   step: (count = 1, dt = 1 / 60) => {
     for (let i = 0; i < count; i++) frame(dt);
