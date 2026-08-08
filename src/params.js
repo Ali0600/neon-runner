@@ -14,6 +14,14 @@ export const params = {
   style: 'neon',
 
   // --- engine ---
+  // 'analytic' derives position from a closed form (exact pause and scrub);
+  // 'gpgpu' integrates state in ping-pong textures, which is what makes the
+  // feedback forces below possible at all.
+  engine: 'analytic',
+  vortex: 10,
+  turbulence: 1.0,
+  regather: 3.0,
+
   maxParticles: 30000,
   trailSamples: 110,
   pixelRatio: Math.min(window.devicePixelRatio || 1, 2),

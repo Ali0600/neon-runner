@@ -6,6 +6,7 @@ import { createInput } from './input.js';
 import { createRunner } from './runner.js';
 import { createCameraRig } from './camera.js';
 import { createParticleSystem } from './particles/ParticleSystem.js';
+import { createGpuEngine } from './particles/GpuEngine.js';
 import { createTrail } from './trail/Trail.js';
 import { createGame } from './game/Game.js';
 import { createPost } from './post.js';
@@ -30,6 +31,10 @@ const particles = createParticleSystem(params);
 scene.add(particles.mesh);
 scene.add(particles.smokeMesh);
 
+const gpuEngine = createGpuEngine(params, renderer);
+scene.add(gpuEngine.mesh);
+scene.add(gpuEngine.smokeMesh);
+
 const trail = createTrail(params);
 trail.mesh.renderOrder = 1; // additive systems composite over the smoke layer
 scene.add(trail.mesh);
@@ -46,8 +51,12 @@ stats.dom.style.right = '0px';
 document.body.appendChild(stats.dom);
 
 function applyParams() {
+  const gpgpu = params.engine === 'gpgpu';
   runner.applyParams();
   particles.applyParams();
+  particles.mesh.visible = !gpgpu;
+  particles.smokeMesh.visible = !gpgpu && params.style === 'smoke';
+  gpuEngine.applyParams();
   trail.applyParams();
   game.applyParams();
   post.applyParams();
@@ -88,8 +97,15 @@ function frame(dt) {
   // Before the emitter, so a collection burst this frame ships in the same
   // buffer upload as the runner's continuous emission.
   game.update(simDt, simTime, runner);
-  particles.update(simDt, simTime, runner);
-  trail.update(simTime, runner);
+  // Only the active engine simulates; the other's mesh is hidden and its state
+  // left untouched, so switching back resumes rather than restarts.
+  if (params.engine === 'gpgpu') {
+    trail.update(simTime, runner);
+    gpuEngine.update(simDt, simTime, runner, trail);
+  } else {
+    particles.update(simDt, simTime, runner);
+    trail.update(simTime, runner);
+  }
 
   renderer.info.reset();
   post.render();
@@ -112,6 +128,7 @@ window.__app = {
   camera,
   runner,
   particles,
+  gpuEngine,
   trail,
   game,
   rig,

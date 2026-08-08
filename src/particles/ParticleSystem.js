@@ -1,14 +1,20 @@
 import * as THREE from 'three';
 import { computeUpdateRanges } from './ringRanges.js';
-import vertexShader from '../shaders/particles.vert.glsl?raw';
+import { takeSpawnCount, emissionRate, computeSpawn } from './spawnComputation.js';
+import commonChunk from '../shaders/chunks/particleCommon.glsl?raw';
+import vertexBody from '../shaders/particles.vert.glsl?raw';
 import fragmentShader from '../shaders/particles.frag.glsl?raw';
 
 // Hard allocation ceiling. params.maxParticles selects how much of it is live;
 // the typed arrays are never reallocated after construction.
 export const CAPACITY = 65536;
 
-const INHERIT = 0.32; // fraction of runner velocity the particle keeps
+// Uniform and varying declarations plus the billboard helpers live in the
+// chunk, which the GPGPU engine composes into its own vertex shader too.
+export const vertexShader = `${commonChunk}\n${vertexBody}`;
+
 const _prev = new THREE.Vector3();
+const _ctx = {};
 
 export function createParticleSystem(params) {
   const aSpawn = new Float32Array(CAPACITY * 4); // xyz spawn pos, w spawn time
@@ -147,11 +153,6 @@ export function createParticleSystem(params) {
     }
 
     const cap = system.activeCapacity;
-    const dissolve = runner.dissolve;
-    const moveGate = Math.min(1, runner.speed / 1.6);
-    const rate =
-      (params.walkRate + (params.sprintRate - params.walkRate) * Math.pow(dissolve, 1.4)) *
-      moveGate;
 
     // A paused sim (timeScale 0) must not accumulate spawns.
     if (simDt <= 0) {
@@ -161,68 +162,49 @@ export function createParticleSystem(params) {
       return;
     }
 
-    system.accum += rate * simDt;
-    let n = Math.floor(system.accum);
-    system.accum -= n;
-
     if (!system._prevValid) {
       _prev.copy(runner.position);
       system._prevValid = true;
     }
 
+    const n = takeSpawnCount(system, emissionRate(params, runner), simDt, cap);
     if (n <= 0) {
       system.spawnedLastFrame = 0;
       _prev.copy(runner.position);
       return;
     }
-    // Writing more than the ring holds would overwrite this frame's own spawns.
-    if (n > cap) n = cap;
 
     const head = system.head;
-    const life = params.lifetime;
-    const spread = params.spread;
-    const rise = params.riseBias;
-    const jitter = 0.1 + dissolve * 0.22;
-    const vx = runner.velocity.x;
-    const vy = runner.velocity.y;
-    const vz = runner.velocity.z;
     const prevTime = simTime - simDt;
 
-    const emitPoints = runner.emitPoints;
-    const nEmit = emitPoints.length;
+    _ctx.emitPoints = runner.emitPoints;
+    _ctx.position = runner.position;
+    _ctx.prev = _prev;
+    _ctx.velocity = runner.velocity;
+    _ctx.jitter = 0.1 + runner.dissolve * 0.22;
+    _ctx.spread = params.spread;
+    _ctx.rise = params.riseBias;
+    _ctx.lifetime = params.lifetime;
 
     for (let k = 0; k < n; k++) {
       const idx = (head + k) % cap;
       const o4 = idx * 4;
-      // Spread spawns along the path walked this frame (and across the frame's
-      // time span) so a fast sprint emits a continuous ribbon, not per-frame clumps.
-      const u = n === 1 ? 0.5 : k / n;
-      // Emitter joints are in world space at the CURRENT frame; rewinding them
-      // along the frame's displacement puts each spawn where that joint
-      // actually was at its own spawn time.
-      const back = 1 - u;
-      const ox = (runner.position.x - _prev.x) * back;
-      const oy = (runner.position.y - _prev.y) * back;
-      const oz = (runner.position.z - _prev.z) * back;
+      const s = computeSpawn(k, n, _ctx);
 
-      const e = emitPoints[(Math.random() * nEmit) | 0];
-      aSpawn[o4] = e.x - ox + (Math.random() - 0.5) * jitter;
-      aSpawn[o4 + 1] = e.y - oy + (Math.random() - 0.5) * jitter;
-      aSpawn[o4 + 2] = e.z - oz + (Math.random() - 0.5) * jitter;
-      aSpawn[o4 + 3] = prevTime + simDt * u;
+      aSpawn[o4] = s.px;
+      aSpawn[o4 + 1] = s.py;
+      aSpawn[o4 + 2] = s.pz;
+      // The analytic engine records WHEN the particle was born and derives its
+      // position from that; the GPGPU engine integrates instead, so this is the
+      // one field the two do not share.
+      aSpawn[o4 + 3] = prevTime + simDt * s.u;
 
-      // Random direction on a sphere, magnitude biased toward the surface.
-      const th = Math.random() * Math.PI * 2;
-      const z = Math.random() * 2 - 1;
-      const r = Math.sqrt(Math.max(0, 1 - z * z));
-      const mag = spread * (0.35 + Math.random() * 0.65);
+      aVel[o4] = s.vx;
+      aVel[o4 + 1] = s.vy;
+      aVel[o4 + 2] = s.vz;
+      aVel[o4 + 3] = s.life;
 
-      aVel[o4] = vx * INHERIT + Math.cos(th) * r * mag;
-      aVel[o4 + 1] = vy * INHERIT + z * mag * 0.6 + rise * 0.35;
-      aVel[o4 + 2] = vz * INHERIT + Math.sin(th) * r * mag;
-      aVel[o4 + 3] = life * (0.55 + Math.random() * 0.65);
-
-      aSeed[idx] = Math.random();
+      aSeed[idx] = s.seed;
     }
 
     for (const range of computeUpdateRanges(head, n, cap, 4)) {

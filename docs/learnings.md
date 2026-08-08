@@ -57,6 +57,59 @@ pixel bits.
 **Takeaway:** any easing that should eventually *settle* needs an epsilon snap.
 Without one, "at rest" is a state your system never actually enters.
 
+## Closed-form vs integrated simulation is a real trade, not an upgrade
+
+The analytic engine computes a particle's position as a function of its age;
+the GPGPU engine integrates position and velocity in ping-pong float textures.
+The integrated one is not simply "better": it unlocks forces that depend on
+where a particle currently is (a vortex around a path, an attractor that pulls
+particles home), and it gives up the ability to jump to an arbitrary time,
+because Euler steps over a variable timestep are not reproducible from a
+timestamp.
+
+**Why it came up:** running both side by side made the cost visible — the GPGPU
+compute pass covers every texel whether or not a particle occupies it, so at 30k
+active particles it costs about twice the analytic engine, and at 65k only ~14%
+more. A fixed-size simulation is cheap only when the buffer is full.
+
+**Takeaway:** if motion has a closed form, keeping it closed-form buys exact
+pause, scrub, and cost proportional to what is alive. Reach for integrated state
+when behaviour genuinely depends on current state — and expect to pay a
+constant, not a proportional, price.
+
+## A UI control that silently does nothing is worse than a missing one
+
+The GPGPU render geometry never had `instanceCount` set, so it always drew all
+65,536 instances. The max-particles slider kept working perfectly in the
+analytic engine and did **nothing** in the GPGPU one — no error, no warning, and
+the frame rate barely moved, which is exactly what you would expect from a
+slider that works.
+
+**Why it came up:** it surfaced only from a benchmark that reported almost
+identical GPGPU cost at 30k and 65k. The number looked odd before the control
+did.
+
+**Takeaway:** when a shared control reaches two implementations, assert it takes
+effect in both — read back the value the system actually holds
+(`geometry.instanceCount`, triangles drawn), not the parameter you set. A
+performance measurement that refuses to change is a good place to go looking.
+
+## Scope a GPU readback probe to where the data actually is
+
+Verifying the GPGPU simulation, I read back the bottom-left 64×64 of a 256×256
+state texture and got zero live particles — an alarming result that looked like
+the whole engine was dead. The engine was fine: the ring buffer's write head was
+around row 116, and the corner I sampled had last been written a full lap
+earlier, so everything in it was correctly expired.
+
+**Why it came up:** reading the whole texture instead showed 3,794 live
+particles, and zero after emission stopped and time passed — which is the real
+proof that spawning and expiry both work.
+
+**Takeaway:** a partial readback of a circular buffer samples an arbitrary point
+in its history. Either read the whole thing or aim at the head — and treat a
+zero result from a narrow probe as a question about the probe first.
+
 ## Discrete-time collision needs the path, not the position
 
 A per-frame "is the player within radius of the target" check silently assumes

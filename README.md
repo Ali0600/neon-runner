@@ -16,6 +16,14 @@ Then open http://localhost:5173. **WASD** to move, **hold Shift** to sprint,
 
 ## Features
 
+- **Two switchable particle engines.** **Analytic** derives each particle's
+  position from a closed form of its age — exact pause and scrub, cost
+  proportional to what is alive. **GPGPU** integrates position and velocity in
+  ping-pong float textures, which buys feedback forces the closed form cannot
+  express: a **vortex** spiralling around the runner's recent path, spatial
+  **turbulence**, and a **regather** that pulls shed light back in when the
+  runner stops. Both share the fragment shader, the billboard maths, and the
+  spawn scheduling, so only the position source differs.
 - **Ambient scoring loop** — glowing rings scattered across the field, collected
   by running through them, each firing a 260-particle burst through the same
   ring buffer as the runner's emission. A combo multiplier climbs while
@@ -50,8 +58,17 @@ Then open http://localhost:5173. **WASD** to move, **hold Shift** to sprint,
 - **UnrealBloom post chain** and a full live-tuning panel (emission, palette,
   streak geometry, trail, bloom, pixel ratio, time scale).
 
-Measured on a 2560×1600 buffer at device pixel ratio 2: **411 fps** at the
-default 30k particles, **140 fps** at the 65k maximum with 25,000 spawns/sec.
+Measured on a 2560×1600 buffer at device pixel ratio 2:
+
+| engine | 30k particles | 65k particles |
+| --- | --- | --- |
+| analytic | 311 fps | 151 fps |
+| gpgpu | 152 fps | 130 fps |
+
+The GPGPU engine costs roughly double at 30k but only ~14% more at 65k, because
+its compute pass always covers all 65,536 texels regardless of how many
+particles are active — it pays full simulation price for a partly empty buffer,
+while the analytic engine pays only for what is alive.
 
 ## Layout
 
@@ -59,8 +76,11 @@ default 30k particles, **140 fps** at the 65k maximum with 25,000 spawns/sec.
 | --- | --- |
 | `src/main.js` | Renderer, sim clock, frame loop, `window.__app` verification hooks |
 | `src/params.js` | Single shared params object read by the GUI and every system |
-| `src/particles/ParticleSystem.js` | Ring buffer, spawn scheduling, instanced geometry |
-| `src/particles/ringRanges.js` | Pure ring→update-range mapping (unit tested) |
+| `src/particles/ParticleSystem.js` | Analytic engine: ring buffer, instanced geometry, materials |
+| `src/particles/GpuEngine.js` | GPGPU engine: ping-pong state, forces, points-pass spawn injection |
+| `src/particles/spawnComputation.js` | Spawn scheduling and initial conditions, shared by both engines |
+| `src/particles/ringRanges.js`, `slotUv.js` | Pure ring→update-range and slot→texel mappings (unit tested) |
+| `src/shaders/chunks/particleCommon.glsl` | Billboard and sizing maths shared by both engines' vertex shaders |
 | `src/runner.js` | Kinematics, joint hierarchy, run cycle, dissolve material |
 | `src/trail/Trail.js` | Position sampling and ribbon rebuild |
 | `src/camera.js` | Third-person follow rig with epsilon-snapped easing |
@@ -76,7 +96,7 @@ trying; `docs/learnings.md` covers the transferable concepts.
 npm test
 ```
 
-38 tests over the three pure modules:
+48 tests over the four pure modules:
 
 - **ring buffer ranges** — wraparound, exact boundaries, oversized writes, and
   the invariant that no range ever exceeds the buffer.
@@ -84,6 +104,9 @@ npm test
   clobbers engine-owned settings like capacity or time scale.
 - **game logic** — seeded placement, swept collection, combo growth and decay,
   scoring.
+- **slot/texel mapping** — the GPGPU spawn injection lands on texel centres,
+  never on an edge (ambiguous under nearest filtering) and never outside the
+  clip volume.
 
 Every suite is verified fail-first: disabling the wraparound branch turns the
 range tests red, deleting one key from a preset turns the style tests red, and
@@ -130,3 +153,11 @@ confirming the expected commit is in it, not checking a status code.
   swept-segment collision, framerate-independent combo decay) to make gameplay
   behaviour unit-testable without a renderer, and identified a frame-rate-
   dependent collision defect by writing the failing case before the fix.
+- Implemented a second GPGPU compute pipeline using ping-pong float render
+  targets, enabling state-dependent physics (path vortex, attractor, spatial
+  turbulence) impossible in the closed-form engine, with per-frame spawn
+  injection that uploads only newly created particles.
+- Refactored two rendering back ends onto shared GLSL modules and a shared
+  spawn-scheduling module so the implementations cannot diverge, and benchmarked
+  both to quantify the trade — establishing that fixed-size GPU simulation costs
+  2× at half occupancy but only 14% at full.
