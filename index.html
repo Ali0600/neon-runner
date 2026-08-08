@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>NEON RUNNER</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #05060a;
+        overflow: hidden;
+        font-family: ui-monospace, "SF Mono", Menlo, monospace;
+      }
+      canvas {
+        display: block;
+      }
+      #hud {
+        position: fixed;
+        left: 16px;
+        bottom: 14px;
+        color: #7ce9ff;
+        font-size: 11px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        opacity: 0.55;
+        pointer-events: none;
+        text-shadow: 0 0 12px rgba(37, 245, 255, 0.6);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="hud">WASD move &nbsp;·&nbsp; SHIFT sprint &nbsp;·&nbsp; drag to orbit</div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
