@@ -27,8 +27,10 @@ scene.add(runner.group);
 
 const particles = createParticleSystem(params);
 scene.add(particles.mesh);
+scene.add(particles.smokeMesh);
 
 const trail = createTrail(params);
+trail.mesh.renderOrder = 1; // additive systems composite over the smoke layer
 scene.add(trail.mesh);
 
 const rig = createCameraRig(camera);

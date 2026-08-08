@@ -9,21 +9,38 @@ uniform float uStretch;
 uniform float uWobble;
 uniform float uRise;
 uniform float uDrag;
+uniform float uSmokeRatio;
+uniform float uGrow;
 
 varying vec2 vUv;
 varying float vFade;
 varying float vSeed;
+varying float vLifeN;
 
+// KIND_STREAK (neon), KIND_EMBER and KIND_SMOKE are compile-time defines. The
+// ember and smoke materials render the SAME instance buffer and split it by
+// seed, so one emitter feeds both — each material skips the instances the other
+// owns via the same degenerate-vertex path used for dead particles.
 void main() {
   float life = aVel.w;
   float t = uTime - aSpawn.w;
 
-  // Dead or not yet born: emit a degenerate off-screen vertex. Cheaper than a
-  // second draw call and the triangle is clipped before rasterization.
-  if (t < 0.0 || t >= life || life <= 0.0) {
+  bool isSmoke = fract(aSeed * 37.719) < uSmokeRatio;
+  #ifdef KIND_SMOKE
+    bool wrongKind = !isSmoke;
+  #elif defined(KIND_EMBER)
+    bool wrongKind = isSmoke;
+  #else
+    bool wrongKind = false;
+  #endif
+
+  // Dead, not yet born, or owned by the sibling material: emit a degenerate
+  // off-screen vertex. The triangle is clipped before rasterization.
+  if (wrongKind || t < 0.0 || t >= life || life <= 0.0) {
     vUv = vec2(0.0);
     vFade = 0.0;
     vSeed = 0.0;
+    vLifeN = 0.0;
     gl_Position = vec4(2e3, 2e3, 2e3, 1.0);
     return;
   }
@@ -61,15 +78,26 @@ void main() {
   float lifeN = t / life;
   float sizeJit = 0.55 + fract(aSeed * 91.7) * 0.95;
 
-  float width = uWidth * sizeJit * (0.35 + 0.65 * (1.0 - lifeN));
-  float len = (uLength + uStretch * speed) * sizeJit;
+  #ifdef KIND_SMOKE
+    // Round and expanding: a wisp of smoke spreads as it cools, and having no
+    // long axis is what stops it reading as another streak.
+    float puff = uWidth * sizeJit * (1.0 + uGrow * lifeN);
+    float width = puff;
+    float len = puff;
+    // Slow fade in and a long fade out — smoke lingers where light does not.
+    vFade = smoothstep(0.0, 0.12, lifeN) * (1.0 - smoothstep(0.25, 1.0, lifeN));
+  #else
+    float width = uWidth * sizeJit * (0.35 + 0.65 * (1.0 - lifeN));
+    float len = (uLength + uStretch * speed) * sizeJit;
+    vFade = smoothstep(0.0, 0.05, lifeN) * (1.0 - smoothstep(0.3, 1.0, lifeN));
+  #endif
 
   vec2 c = position.xy; // quad corner, +-0.5
   vec3 offset = c.x * S * width + c.y * T * len;
 
-  vFade = smoothstep(0.0, 0.05, lifeN) * (1.0 - smoothstep(0.3, 1.0, lifeN));
   vUv = position.xy + 0.5;
   vSeed = aSeed;
+  vLifeN = lifeN;
 
   gl_Position = projectionMatrix * vec4(vp + offset, 1.0);
 }

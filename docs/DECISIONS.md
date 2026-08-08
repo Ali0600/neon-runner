@@ -83,6 +83,51 @@ This split was not free: the first implementation had the runner's autopilot,
 velocity easing and dissolve ramp on real time, so a "paused" scene kept
 drifting. See `docs/learnings.md`.
 
+## D11 — Particle kinds as compile-time defines over three prebuilt materials
+
+**Fork:** support a second visual style (smoke & embers) by branching on a
+uniform inside one material, by duplicating the shader files per style, or by
+compiling one shader pair into several materials via `defines`.
+
+- *Uniform branch:* pays the branch cost on every particle in every style, and
+  **cannot express smoke at all** — blending is a material property, not a
+  uniform, so a normal-blended wisp and an additive spark can never share one
+  material.
+- *Duplicated shaders:* the motion code would exist twice and drift.
+- *`defines`:* one source of truth for motion and billboarding; each kind
+  compiles to exactly the code it needs.
+
+**Chosen:** `defines`, with all three materials built at startup so switching
+style never stalls on a shader compile mid-session.
+
+**Status of alternatives:** `rejected — a uniform cannot change blending`.
+
+## D12 — One shared ring buffer, seed-partitioned, not two particle systems
+
+Smoke mode draws the *same* instance buffer twice: once with the ember material,
+once with the smoke material. Each material discards the instances the other
+owns (`fract(aSeed * 37.719) < uSmokeRatio`) through the existing
+degenerate-vertex path. One emitter, one ring, no duplicated CPU work — the cost
+is one extra vertex pass whose non-matching instances exit immediately.
+
+Smoke draws at `renderOrder = 0` and every additive system at `renderOrder = 1`,
+so embers and glow always composite over the wisps.
+
+**Rejected:** per-frame depth sorting of the smoke instances. At the low
+per-puff alpha the style uses, sort popping is invisible, and sorting up to 65k
+instances every frame is an expensive fix for a problem nobody can see.
+
+## D13 — The trail ribbon is disabled in smoke style
+
+The ribbon is an additive light core. In neon it supplies continuity that
+particles alone cannot at sprint speed; in smoke it would contradict the dark
+value structure the style depends on, and the wisps already provide that
+continuity through their own overlap.
+
+**Status of alternative:** a dark heat-shimmer ribbon would need a refraction
+post pass — `deferred — worth trying`. *Revisit hook:* `src/trail/Trail.js`
+materials and `params.trailEnabled`.
+
 ## D9 — Pages base path from the build command, not an environment variable
 
 **Fork:** GitHub Pages serves a project site from `/<repo>/` while the dev
