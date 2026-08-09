@@ -17,7 +17,9 @@ void main() {
 
   // Camera-facing ribbon: offset perpendicular to both the path and the view
   // ray, so the strip never edges out to a hairline as the camera swings.
-  vec3 toCam = normalize(-viewPos.xyz);
+  // Same projection assumption as the particle billboards: -viewPos is only the
+  // direction to the camera under perspective. See particleCommon.glsl.
+  vec3 toCam = isOrthographic ? vec3(0.0, 0.0, 1.0) : normalize(-viewPos.xyz);
   vec3 normal = cross(viewTangent, toCam);
   float len = length(normal);
   normal = len > 1e-4 ? normal / len : vec3(1.0, 0.0, 0.0);

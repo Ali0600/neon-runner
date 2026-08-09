@@ -2,7 +2,7 @@ import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 import { CAPACITY } from './particles/ParticleSystem.js';
 import { STYLE_NAMES, STYLE_PRESETS, applyStylePreset } from './styles.js';
 
-export function createGui(params, apply, stats) {
+export function createGui(params, apply, stats, onTrigger) {
   const gui = new GUI({ title: 'NEON RUNNER' });
   const on = () => apply();
 
@@ -69,6 +69,19 @@ export function createGui(params, apply, stats) {
   const g = gui.addFolder('Game');
   g.add(params, 'game').name('pickups').onChange(on);
   g.add(params, 'collectRadius', 0.5, 5, 0.1).name('collect radius');
+
+  const scope = gui.addFolder('Scope');
+  scope.add(params, 'scope').name('SCOPE VIEW').onChange(on);
+  scope.add(params, 'scopeProjection', ['ortho', 'persp']).name('projection').onChange(on);
+  scope.add(params, 'scopeViewHeight', 6, 80, 0.5).name('view height').onChange(on);
+  scope.add(params, 'scopeLead', 0.05, 0.95, 0.01).name('runner position');
+  scope.add(params, 'scopeInterval', 0.5, 10, 0.1).name('event interval (s)');
+  scope.add(params, 'scopeTurn').name('· turns');
+  scope.add(params, 'scopeSprint').name('· sprint pulses');
+  scope.add(params, 'scopeStop').name('· stops');
+  scope.add(params, 'scopeTurnAmplitude', 0, 8, 0.25).name('turn amplitude');
+  scope.add(params, 'scopeLaneHalf', 100, 20000, 100).name('lane half-length');
+  scope.add({ fire: () => onTrigger?.() }, 'fire').name('trigger event  [T]');
 
   const sim = gui.addFolder('Sim');
   sim.add(params, 'timeScale', 0, 2, 0.01).name('time scale');

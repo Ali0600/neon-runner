@@ -117,6 +117,11 @@ export function createTrail(params) {
     geometry.setDrawRange(0, (count - 1) * 6);
   };
 
+  trail.clear = () => {
+    samples.length = 0;
+    geometry.setDrawRange(0, 0);
+  };
+
   trail.applyParams = () => {
     mesh.visible = params.trailEnabled !== false;
     material.uniforms.uWidth.value = params.trailWidth;

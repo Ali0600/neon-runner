@@ -6,7 +6,8 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
 export function createPost(renderer, scene, camera, params) {
   const composer = new EffectComposer(renderer);
-  composer.addPass(new RenderPass(scene, camera));
+  const renderPass = new RenderPass(scene, camera);
+  composer.addPass(renderPass);
 
   const bloom = new UnrealBloomPass(
     new THREE.Vector2(window.innerWidth, window.innerHeight),
@@ -23,6 +24,12 @@ export function createPost(renderer, scene, camera, params) {
   return {
     composer,
     bloom,
+    renderPass,
+    // RenderPass holds its camera as a plain field read at draw time, so
+    // swapping projections is an assignment — no composer rebuild.
+    setCamera: (cam) => {
+      renderPass.camera = cam;
+    },
     render: () => composer.render(),
     setSize: (w, h) => {
       composer.setSize(w, h);

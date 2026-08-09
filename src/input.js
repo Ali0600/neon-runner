@@ -27,16 +27,26 @@ export function createInput(domElement) {
   let lastX = 0;
   let lastY = 0;
 
+  // Typing into a GUI number field must not also drive the runner. This guard
+  // predates the T binding but only became obvious once a letter key was bound.
+  function isTyping() {
+    const el = document.activeElement;
+    return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
+  }
+
   function onKeyDown(e) {
-    if (e.repeat) return;
+    if (e.repeat || isTyping()) return;
     if (KEYS[e.code]) {
       down.add(KEYS[e.code]);
       e.preventDefault();
     }
     if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') state.sprint = true;
+    if (e.code === 'KeyT') state.onTrigger?.();
   }
 
   function onKeyUp(e) {
+    // Deliberately NOT guarded by isTyping(): a key pressed before focus moved
+    // into a field must still release, or it sticks down forever.
     if (KEYS[e.code]) down.delete(KEYS[e.code]);
     if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') state.sprint = false;
   }

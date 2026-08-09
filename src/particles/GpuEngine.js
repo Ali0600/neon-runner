@@ -221,6 +221,21 @@ export function createGpuEngine(params, renderer) {
     uniforms.uSmokeRatio.value = smoke ? params.smokeRatio : 0;
   };
 
+  // Re-seed both ping-pong targets of both variables from the all-dead initial
+  // textures. This is the same call GPUComputationRenderer.init() uses to seed
+  // them, not a poke at internals.
+  engine.clear = function clear() {
+    if (!engine.available) return;
+    gpu.renderTexture(pos0, posVar.renderTargets[0]);
+    gpu.renderTexture(pos0, posVar.renderTargets[1]);
+    gpu.renderTexture(vel0, velVar.renderTargets[0]);
+    gpu.renderTexture(vel0, velVar.renderTargets[1]);
+    engine.head = 0;
+    engine.accum = 0;
+    engine.spawnedLastFrame = 0;
+    engine._prevValid = false;
+  };
+
   engine.setEnabled = function setEnabled(on) {
     engine.enabled = on;
     mesh.visible = on;

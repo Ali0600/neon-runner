@@ -5,6 +5,7 @@ import { createScene } from './scene.js';
 import { createInput } from './input.js';
 import { createRunner } from './runner.js';
 import { createCameraRig } from './camera.js';
+import { createScopeCamera } from './scope/scopeCamera.js';
 import { createParticleSystem } from './particles/ParticleSystem.js';
 import { createGpuEngine } from './particles/GpuEngine.js';
 import { createTrail } from './trail/Trail.js';
@@ -43,7 +44,10 @@ const game = createGame(params, particles);
 scene.add(game.mesh);
 
 const rig = createCameraRig(camera);
+const scopeCam = createScopeCamera(camera);
 const post = createPost(renderer, scene, camera, params);
+
+const activeCamera = () => (params.scope ? scopeCam.active(params) : camera);
 
 const stats = new Stats();
 stats.dom.style.left = 'auto';
@@ -61,10 +65,13 @@ function applyParams() {
   game.applyParams();
   post.applyParams();
   renderer.setPixelRatio(params.pixelRatio);
+  post.setCamera(activeCamera());
   onResize();
 }
 
-createGui(params, applyParams, stats);
+const fireScopeEvent = () => runner.triggerScopeEvent('turn', simTime, 3.2);
+input.onTrigger = fireScopeEvent;
+createGui(params, applyParams, stats, fireScopeEvent);
 applyParams();
 
 function onResize() {
@@ -72,6 +79,7 @@ function onResize() {
   const h = window.innerHeight;
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
+  scopeCam.resize(w, h, params);
   renderer.setSize(w, h);
   post.setSize(w, h);
 }
@@ -93,7 +101,21 @@ function frame(dt) {
 
   input.update();
   runner.update(simDt, simTime, input, rig.yaw + input.orbitYaw);
-  rig.update(dt, runner, input);
+
+  // Rewind BEFORE the engines update. computeSpawn interpolates each spawn
+  // between the previous and current position, so if the emitters still held
+  // the pre-wrap x, one frame's spawns would smear as a single streak across
+  // the entire lane — and sweptCollect would collect every ring on the line.
+  if (runner.laneWrapped) {
+    runner.laneWrapped = false;
+    particles.clear();
+    gpuEngine.clear();
+    trail.clear();
+    game._prevValid = false;
+  }
+
+  if (params.scope) scopeCam.update(runner, params);
+  else rig.update(dt, runner, input);
   // Before the emitter, so a collection burst this frame ships in the same
   // buffer upload as the runner's continuous emission.
   game.update(simDt, simTime, runner);
@@ -140,5 +162,18 @@ window.__app = {
   step: (count = 1, dt = 1 / 60) => {
     for (let i = 0; i < count; i++) frame(dt);
     return { simTime, pos: runner.position.toArray(), speed: runner.speed };
+  },
+  scope: {
+    camera: activeCamera,
+    // Verification hook: under an orthographic projection this must leave the
+    // rendered frame bit-identical, which is what proves the billboard basis
+    // is not using the perspective-only camera direction.
+    dolly: (d) => scopeCam.dolly(d),
+    resetDolly: () => {
+      scopeCam.dollyOffset = 0;
+    },
+    sample: () => runner.scopeSample,
+    trigger: (kind = 'turn', duration = 1.6) =>
+      runner.triggerScopeEvent(kind, simTime, duration),
   },
 };

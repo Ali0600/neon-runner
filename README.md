@@ -24,6 +24,13 @@ Then open http://localhost:5173. **WASD** to move, **hold Shift** to sprint,
   **turbulence**, and a **regather** that pulls shed light back in when the
   runner stops. Both share the fragment shader, the billboard maths, and the
   spawn scheduling, so only the position source differs.
+- **SCOPE view** — a lab mode that lays the effect out along a straight lane so
+  it reads like a waveform trace: the runner travels in a line, the plume
+  streams out behind it horizontally, and the camera locks side-on in either
+  **orthographic** (no perspective distortion, so a streak at the edge measures
+  the same as one at centre) or perspective. Because a straight line only ever
+  shows steady state, a scripted scheduler injects the transients — turns,
+  sprint pulses, full stops — with `T` firing one on demand in isolation.
 - **Ambient scoring loop** — glowing rings scattered across the field, collected
   by running through them, each firing a 260-particle burst through the same
   ring buffer as the runner's emission. A combo multiplier climbs while
@@ -96,7 +103,7 @@ trying; `docs/learnings.md` covers the transferable concepts.
 npm test
 ```
 
-48 tests over the four pure modules:
+76 tests over the pure modules:
 
 - **ring buffer ranges** — wraparound, exact boundaries, oversized writes, and
   the invariant that no range ever exceeds the buffer.
@@ -107,6 +114,10 @@ npm test
 - **slot/texel mapping** — the GPGPU spawn injection lands on texel centres,
   never on an edge (ambiguous under nearest filtering) and never outside the
   clip volume.
+- **scope schedule and lane** — event sequence construction, sampling exactly on
+  boundaries (including ones that are not exactly representable in binary),
+  speed and heading continuity across every segment join, and lane wrapping
+  under large overshoot.
 
 Every suite is verified fail-first: disabling the wraparound branch turns the
 range tests red, deleting one key from a preset turns the style tests red, and
@@ -161,3 +172,11 @@ confirming the expected commit is in it, not checking a status code.
   spawn-scheduling module so the implementations cannot diverge, and benchmarked
   both to quantify the trade — establishing that fixed-size GPU simulation costs
   2× at half occupancy but only 14% at full.
+- Diagnosed and fixed a projection-dependent shader defect in which
+  velocity-aligned billboards derived the camera direction from a
+  perspective-only assumption, and proved the fix with a camera-dolly
+  frame-identity assertion that is demonstrably red against the prior formula.
+- Designed a scripted event-injection harness as a stateless pure function of
+  simulation time, making a real-time visual effect reproducible, freezable and
+  unit-testable without a renderer — and caught a floating-point boundary defect
+  in it that would have surfaced as an intermittent visual glitch.
