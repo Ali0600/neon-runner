@@ -12,6 +12,57 @@
 
 ---
 
+## D28 — A control that enters a mode owns leaving it
+
+The scrub slider forced `timeScale = 0` so a single frame could never mix two
+times — correct on its own. But nothing ever gave the time scale back: returning
+scrub to zero left the world paused, and the only way out was to know that a
+slider in a *different folder* had been changed on your behalf. A safety measure
+became a trap, and the user hit it.
+
+**Chosen:** the scrub borrows the time scale and hands it back.
+
+- Moving off zero stores the current `timeScale` (once) before pausing.
+- Returning to zero restores exactly that value — verified restoring `0.5`, not
+  a hardcoded `1`, so a deliberately slowed sim survives a scrub.
+- Switching to the GPGPU engine mid-scrub releases it too, since that path
+  already forces `scopeScrub = 0` (D26) and would otherwise strand the pause.
+- A **`▶ resume`** button is the escape hatch, and also un-pauses a plain manual
+  pause — the state a confused user is most likely to be in.
+
+**Rule this generalises to:** any control that changes global state on the
+user's behalf owns restoring it. If it can only be undone by knowing what it
+secretly did, it is a one-way door.
+
+## D29 — Speed lock overrides magnitude only, and greys what it supersedes
+
+**Fork:** for tuning you want the motion held constant so the only variable is
+the setting being dragged. Either suppress the scope events entirely, or
+override just the speed.
+
+**Chosen:** override the **magnitude** only. Direction still comes from whichever
+path driver is active, so scope turns keep steering while speed stays flat —
+verified holding 12 u/s across every event kind including `stop` (min 12.00)
+while lateral swing still reached 3.21.
+
+Precedence lives in one pure `resolveTargetSpeed` (hold → path-driver command →
+walk/sprint flag) rather than implicitly in the order of branches inside
+`runner.update`, so it is pinned by tests. A commanded `0` is a real request and
+must not fall through to walk speed — that distinction is what makes scope stops
+work at all.
+
+The velocity easing (`ACCEL = 9`) is deliberately kept, so the runner converges
+on the held speed in about half a second rather than teleporting; the readout
+shows achieved speed, which tracked 8 / 17 / 26 to within 0.2%.
+
+Range runs to 30, past `SPRINT_SPEED` (17), to exaggerate streak stretch beyond
+what normal play reaches. Above sprint the dissolve is already saturated.
+
+**Greying:** with the lock on, `sprint pulses`, `stops` and `force sprint` can no
+longer do anything, so they are disabled and relabelled rather than left live.
+Same reasoning as D17 and D24 — a control that silently does nothing is worse
+than one that is visibly unavailable.
+
 ## D25 — Ruler ticks in-canvas, labels in the DOM
 
 **Fork:** draw the scope ruler's number labels as canvas-texture sprites, or as

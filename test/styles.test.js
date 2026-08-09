@@ -12,6 +12,8 @@ const ENGINE_KEYS = [
   'forceSprint',
   'trailSamples',
   'style',
+  'holdSpeed',
+  'holdSpeedValue',
 ];
 
 describe('style presets', () => {
@@ -56,18 +58,34 @@ describe('applyStylePreset', () => {
       forceSprint: true,
       trailSamples: 240,
       style: 'neon',
+      holdSpeed: true,
+      holdSpeedValue: 26,
     };
+    // One fixture, asserted against itself after the switch: adding an engine
+    // key needs a single edit rather than two literals kept in sync.
+    const engineValues = Object.fromEntries(ENGINE_KEYS.map((k) => [k, params[k]]));
     applyStylePreset(params, STYLE_PRESETS.smoke);
     for (const key of ENGINE_KEYS) {
-      expect(params[key], key).toEqual({
-        maxParticles: 65536,
-        pixelRatio: 1.5,
-        timeScale: 0,
-        autopilot: true,
-        forceSprint: true,
-        trailSamples: 240,
-        style: 'neon',
-      }[key]);
+      expect(params[key], key).toEqual(engineValues[key]);
+    }
+  });
+
+  it('covers every engine key in the fixture', () => {
+    // Guards the guard: an ENGINE_KEY absent from the fixture above would be
+    // compared undefined-to-undefined and pass without testing anything.
+    const params = {
+      maxParticles: 65536,
+      pixelRatio: 1.5,
+      timeScale: 0,
+      autopilot: true,
+      forceSprint: true,
+      trailSamples: 240,
+      style: 'neon',
+      holdSpeed: true,
+      holdSpeedValue: 26,
+    };
+    for (const key of ENGINE_KEYS) {
+      expect(params[key], `${key} missing from the fixture`).toBeDefined();
     }
   });
 

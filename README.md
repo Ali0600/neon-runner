@@ -35,6 +35,11 @@ Then open http://localhost:5173. **WASD** to move, **hold Shift** to sprint,
   which numbers are exact and which are sampled, and a time scrub (`.` steps one
   frame) that is reversible to the exact frame in the analytic engine and
   honestly disabled in the GPGPU one.
+- **Speed lock** (`HOLD SPEED` in the Sim folder) — pins the runner to a constant
+  speed from 0 to 30 u/s, past the game's own sprint of 17. It overrides
+  magnitude only, so scope turns still steer while the speed stays flat; the
+  controls it supersedes grey out rather than silently doing nothing. Locking the
+  motion means the only thing changing while you tune is the setting you drag.
 - **Ambient scoring loop** — glowing rings scattered across the field, collected
   by running through them, each firing a 260-particle burst through the same
   ring buffer as the runner's emission. A combo multiplier climbs while
@@ -107,7 +112,7 @@ trying; `docs/learnings.md` covers the transferable concepts.
 npm test
 ```
 
-93 tests over the pure modules:
+103 tests over the pure modules:
 
 - **ring buffer ranges** — wraparound, exact boundaries, oversized writes, and
   the invariant that no range ever exceeds the buffer.
@@ -118,6 +123,9 @@ npm test
 - **slot/texel mapping** — the GPGPU spawn injection lands on texel centres,
   never on an edge (ambiguous under nearest filtering) and never outside the
   clip volume.
+- **speed resolution** — precedence between the speed lock, a path driver's
+  request and the walk/sprint flag, including that a commanded zero is a real
+  request rather than an absent one.
 - **scope schedule and lane** — event sequence construction, sampling exactly on
   boundaries (including ones that are not exactly representable in binary),
   speed and heading continuity across every segment join, and lane wrapping

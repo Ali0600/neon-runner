@@ -5,6 +5,9 @@ import { STYLE_NAMES, STYLE_PRESETS, applyStylePreset } from './styles.js';
 export function createGui(params, apply, stats, onTrigger, onStep) {
   const gui = new GUI({ title: 'NEON RUNNER' });
   const on = () => apply();
+  // Anything that writes params behind the user's back has to tell the panel,
+  // or the controls show stale values.
+  const refresh = () => gui.controllersRecursive().forEach((c) => c.updateDisplay());
 
   gui
     .add(params, 'style', STYLE_NAMES)
@@ -27,6 +30,9 @@ export function createGui(params, apply, stats, onTrigger, onStep) {
       // than approximate — a control that quietly lies is worse than one that
       // is visibly unavailable.
       const gpgpu = params.engine === 'gpgpu';
+      // Leaving the engine that supports scrubbing must also release the pause
+      // the scrub took, or switching engines mid-scrub strands the sim frozen.
+      if (gpgpu && params.scopeScrub !== 0) releaseScrub();
       scrubCtrl.disable(gpgpu);
       scrubCtrl.name(gpgpu ? 'scrub (analytic only)' : 'scrub (analytic)');
       on();
@@ -89,8 +95,8 @@ export function createGui(params, apply, stats, onTrigger, onStep) {
   scope.add(params, 'scopeLead', 0.05, 0.95, 0.01).name('runner position');
   scope.add(params, 'scopeInterval', 0.5, 10, 0.1).name('event interval (s)');
   scope.add(params, 'scopeTurn').name('· turns');
-  scope.add(params, 'scopeSprint').name('· sprint pulses');
-  scope.add(params, 'scopeStop').name('· stops');
+  const sprintPulseCtrl = scope.add(params, 'scopeSprint').name('· sprint pulses');
+  const stopCtrl = scope.add(params, 'scopeStop').name('· stops');
   scope.add(params, 'scopeTurnAmplitude', 0, 8, 0.25).name('turn amplitude');
   scope.add(params, 'scopeLaneHalf', 100, 20000, 100).name('lane half-length');
   scope.add(params, 'scopeBackdrop').name('keep backdrop').onChange(on);
@@ -99,23 +105,61 @@ export function createGui(params, apply, stats, onTrigger, onStep) {
   scope.add(params, 'scopeReadbackHz', [1, 2, 4, 8]).name('readback Hz (gpgpu)');
   scope.add({ fire: () => onTrigger?.() }, 'fire').name('trigger event  [T]');
 
+  // The time scale the scrub borrowed, so it can be handed back. A control that
+  // silently pauses the world must own un-pausing it too, or it is a trap.
+  let borrowedTimeScale = null;
+
+  function releaseScrub() {
+    params.scopeScrub = 0;
+    if (borrowedTimeScale !== null) {
+      params.timeScale = borrowedTimeScale;
+      borrowedTimeScale = null;
+    }
+    if (params.timeScale === 0) params.timeScale = 1;
+    refresh();
+  }
+
   const scrubCtrl = scope
     .add(params, 'scopeScrub', -3, 0, 0.01)
     .name('scrub (analytic)')
     .onChange((v) => {
-      // Scrubbing while the sim advances would mix two different times in one
-      // frame; pausing removes that whole class of confusion.
-      if (v !== 0 && params.timeScale !== 0) {
-        params.timeScale = 0;
-        gui.controllersRecursive().forEach((c) => c.updateDisplay());
+      if (v !== 0) {
+        // Scrubbing while the sim advances would mix two different times in one
+        // frame; pausing removes that whole class of confusion.
+        if (params.timeScale !== 0) {
+          borrowedTimeScale = params.timeScale;
+          params.timeScale = 0;
+          refresh();
+        }
+      } else {
+        releaseScrub();
       }
     });
   scope.add({ step: () => onStep?.() }, 'step').name('step one frame  [.]');
+  scope.add({ resume: releaseScrub }, 'resume').name('▶ resume');
 
   const sim = gui.addFolder('Sim');
   sim.add(params, 'timeScale', 0, 2, 0.01).name('time scale');
   sim.add(params, 'autopilot').name('autopilot');
-  sim.add(params, 'forceSprint').name('force sprint');
+  const forceSprintCtrl = sim.add(params, 'forceSprint').name('force sprint');
+
+  // Speed lock. Lives here rather than in Scope because it applies everywhere
+  // and this is where the other motion overrides already are.
+  const holdCtrl = sim.add(params, 'holdSpeed').name('HOLD SPEED');
+  sim.add(params, 'holdSpeedValue', 0, 30, 0.5).name('· speed (u/s)');
+
+  // These three only modulate speed, so a lock makes every one of them a no-op.
+  // Greying them out beats leaving controls that silently do nothing.
+  function syncHoldSpeed() {
+    const held = params.holdSpeed;
+    sprintPulseCtrl.disable(held);
+    stopCtrl.disable(held);
+    forceSprintCtrl.disable(held);
+    sprintPulseCtrl.name(held ? '· sprint pulses (held)' : '· sprint pulses');
+    stopCtrl.name(held ? '· stops (held)' : '· stops');
+  }
+  holdCtrl.onChange(syncHoldSpeed);
+  syncHoldSpeed();
   sim.add({ stats: true }, 'stats').name('show fps').onChange((v) => {
     stats.dom.style.display = v ? '' : 'none';
   });

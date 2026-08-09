@@ -62,6 +62,15 @@ export const params = {
   // --- sim ---
   timeScale: 1.0,
 
+  // --- motion overrides ---
+  // Lock the runner to a constant speed so the only thing changing while you
+  // tune is the setting you are dragging. Overrides the sprint flag and any
+  // speed the scope scheduler asks for; direction is untouched, so turns still
+  // steer. Range goes past SPRINT_SPEED (17) deliberately, to exaggerate streak
+  // stretch and emission beyond what normal play reaches.
+  holdSpeed: false,
+  holdSpeedValue: 12,
+
   // --- debug / verification hooks ---
   autopilot: false,
   forceSprint: false,
