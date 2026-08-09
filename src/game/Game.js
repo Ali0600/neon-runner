@@ -110,8 +110,12 @@ export function createGame(params, particles) {
   }
 
   game.update = function update(simDt, simTime, runner) {
-    mesh.visible = params.game;
-    if (!params.game) {
+    // One owner for this mesh's visibility. Scope mode is an inspection view of
+    // the particle effect, and pickups are the brightest things in the scene —
+    // letting declutter hide them while this ran every frame would just fight.
+    const shown = params.game && !params.scope;
+    mesh.visible = shown;
+    if (!shown) {
       updateHud();
       return;
     }
@@ -168,7 +172,7 @@ export function createGame(params, particles) {
     // Pushed past 1.0 with tone mapping off, so the rings clear the bloom
     // threshold and read at distance instead of as thin dark outlines.
     material.color.set(params.colorB).multiplyScalar(1.7);
-    mesh.visible = params.game;
+    mesh.visible = params.game && !params.scope;
     updateHud();
   };
 

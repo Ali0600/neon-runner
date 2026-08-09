@@ -20,6 +20,8 @@ export function createScopeCamera(perspective) {
     // Persistent, because update() rewrites the camera position every frame —
     // a one-shot translate would be undone before it could be rendered.
     dollyOffset: 0,
+    // Lane coordinate at the centre of the view; the ruler reads it.
+    centerX: 0,
   };
 
   /** Size the ortho frustum from a world-unit view height, leaving zoom at 1. */
@@ -43,6 +45,7 @@ export function createScopeCamera(perspective) {
     // Offset along the lane so the runner sits toward one side and the trailing
     // plume fills the rest of the frame.
     const centerX = runner.position.x - halfW * (2 * params.scopeLead - 1);
+    rig.centerX = centerX;
     const cam = rig.active(params);
 
     if (cam.isOrthographicCamera) {

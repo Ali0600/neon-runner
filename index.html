@@ -36,9 +36,39 @@
         font-size: 13px;
         opacity: 0.9;
       }
+      #scope-readouts {
+        position: fixed;
+        left: 16px;
+        top: 14px;
+        color: #9ef2ff;
+        font-size: 12px;
+        line-height: 1.6;
+        letter-spacing: 0.08em;
+        white-space: pre;
+        pointer-events: none;
+        opacity: 0.85;
+        text-shadow: 0 0 10px rgba(37, 245, 255, 0.45);
+      }
+      #scope-ruler {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+      }
+      /* Labels live in the DOM, not the canvas: crisp at any pixel ratio and
+         any orthographic scale, and bloom cannot reach them. */
+      .scope-tick {
+        position: absolute;
+        transform: translate(-50%, 6px);
+        color: #5f8fb5;
+        font-size: 10px;
+        letter-spacing: 0.06em;
+        white-space: nowrap;
+      }
     </style>
   </head>
   <body>
+    <div id="scope-ruler"></div>
+    <div id="scope-readouts"></div>
     <div id="score"></div>
     <div id="hud">WASD move &nbsp;·&nbsp; SHIFT sprint &nbsp;·&nbsp; drag to orbit</div>
     <script type="module" src="/src/main.js"></script>

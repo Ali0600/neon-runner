@@ -52,6 +52,12 @@ export const params = {
   // a larger value just saturates the steering and the number stops meaning
   // anything. See TURN_SPEED_MIX in scope/schedule.js.
   scopeTurnAmplitude: 4,
+  scopeBackdrop: false, // false = decluttered; the point of the view
+  scopeRuler: true,
+  scopeReadouts: true,
+  scopeReadbackHz: 4,
+  // Negative seconds into the past. Analytic engine only — see D26.
+  scopeScrub: 0,
 
   // --- sim ---
   timeScale: 1.0,

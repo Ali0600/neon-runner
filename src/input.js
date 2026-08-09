@@ -42,6 +42,7 @@ export function createInput(domElement) {
     }
     if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') state.sprint = true;
     if (e.code === 'KeyT') state.onTrigger?.();
+    if (e.code === 'Period') state.onStep?.();
   }
 
   function onKeyUp(e) {

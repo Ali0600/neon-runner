@@ -2,7 +2,7 @@ import { GUI } from 'three/addons/libs/lil-gui.module.min.js';
 import { CAPACITY } from './particles/ParticleSystem.js';
 import { STYLE_NAMES, STYLE_PRESETS, applyStylePreset } from './styles.js';
 
-export function createGui(params, apply, stats, onTrigger) {
+export function createGui(params, apply, stats, onTrigger, onStep) {
   const gui = new GUI({ title: 'NEON RUNNER' });
   const on = () => apply();
 
@@ -18,7 +18,19 @@ export function createGui(params, apply, stats, onTrigger) {
       apply();
     });
 
-  gui.add(params, 'engine', ['analytic', 'gpgpu']).name('ENGINE').onChange(on);
+  gui
+    .add(params, 'engine', ['analytic', 'gpgpu'])
+    .name('ENGINE')
+    .onChange(() => {
+      // The GPGPU engine integrates with Euler over a variable timestep, so a
+      // past frame cannot be reconstructed from a timestamp. Disable rather
+      // than approximate — a control that quietly lies is worse than one that
+      // is visibly unavailable.
+      const gpgpu = params.engine === 'gpgpu';
+      scrubCtrl.disable(gpgpu);
+      scrubCtrl.name(gpgpu ? 'scrub (analytic only)' : 'scrub (analytic)');
+      on();
+    });
 
   const forces = gui.addFolder('Forces (gpgpu)');
   forces.add(params, 'vortex', 0, 20, 0.1).name('trail vortex');
@@ -81,7 +93,24 @@ export function createGui(params, apply, stats, onTrigger) {
   scope.add(params, 'scopeStop').name('· stops');
   scope.add(params, 'scopeTurnAmplitude', 0, 8, 0.25).name('turn amplitude');
   scope.add(params, 'scopeLaneHalf', 100, 20000, 100).name('lane half-length');
+  scope.add(params, 'scopeBackdrop').name('keep backdrop').onChange(on);
+  scope.add(params, 'scopeRuler').name('ruler');
+  scope.add(params, 'scopeReadouts').name('readouts');
+  scope.add(params, 'scopeReadbackHz', [1, 2, 4, 8]).name('readback Hz (gpgpu)');
   scope.add({ fire: () => onTrigger?.() }, 'fire').name('trigger event  [T]');
+
+  const scrubCtrl = scope
+    .add(params, 'scopeScrub', -3, 0, 0.01)
+    .name('scrub (analytic)')
+    .onChange((v) => {
+      // Scrubbing while the sim advances would mix two different times in one
+      // frame; pausing removes that whole class of confusion.
+      if (v !== 0 && params.timeScale !== 0) {
+        params.timeScale = 0;
+        gui.controllersRecursive().forEach((c) => c.updateDisplay());
+      }
+    });
+  scope.add({ step: () => onStep?.() }, 'step').name('step one frame  [.]');
 
   const sim = gui.addFolder('Sim');
   sim.add(params, 'timeScale', 0, 2, 0.01).name('time scale');

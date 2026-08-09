@@ -156,7 +156,10 @@ export function createParticleSystem(params) {
    * @param {number} simTime sim-clock time; particle ages are measured in it
    */
   system.update = function update(simDt, simTime, runner) {
-    uniforms.uTime.value = simTime;
+    // Spawning uses the true sim time; only the RENDER clock is offset, so a
+    // scrub never rewrites spawn history — it just displays an earlier moment
+    // of the particles currently in the buffer.
+    uniforms.uTime.value = simTime + (params.scopeScrub || 0);
 
     if (params.maxParticles !== system.activeCapacity) {
       setActiveCapacity(params.maxParticles);
