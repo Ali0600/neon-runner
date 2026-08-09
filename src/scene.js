@@ -17,6 +17,7 @@ export function createScene() {
     })
   );
   ground.rotation.x = -Math.PI / 2;
+  ground.name = 'ground'; // so scope declutter can find it without a type guess
   scene.add(ground);
 
   const grid = new THREE.GridHelper(GROUND, 100, 0x2f5f8f, 0x18304e);

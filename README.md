@@ -31,6 +31,10 @@ Then open http://localhost:5173. **WASD** to move, **hold Shift** to sprint,
   the same as one at centre) or perspective. Because a straight line only ever
   shows steady state, a scripted scheduler injects the transients — turns,
   sprint pulses, full stops — with `T` firing one on demand in isolation.
+  Comes with a stripped backdrop, a world-unit ruler, live readouts that label
+  which numbers are exact and which are sampled, and a time scrub (`.` steps one
+  frame) that is reversible to the exact frame in the analytic engine and
+  honestly disabled in the GPGPU one.
 - **Ambient scoring loop** — glowing rings scattered across the field, collected
   by running through them, each firing a 260-particle burst through the same
   ring buffer as the runner's emission. A combo multiplier climbs while
@@ -103,7 +107,7 @@ trying; `docs/learnings.md` covers the transferable concepts.
 npm test
 ```
 
-76 tests over the pure modules:
+93 tests over the pure modules:
 
 - **ring buffer ranges** — wraparound, exact boundaries, oversized writes, and
   the invariant that no range ever exceeds the buffer.
@@ -180,3 +184,8 @@ confirming the expected commit is in it, not checking a status code.
   simulation time, making a real-time visual effect reproducible, freezable and
   unit-testable without a renderer — and caught a floating-point boundary defect
   in it that would have surfaced as an intermittent visual glitch.
+- Built an instrumentation layer over two dissimilar GPU back ends — CPU
+  re-evaluation of a closed form for one, throttled asynchronous GPU texture
+  readback for the other — surfacing per-metric provenance in the UI rather than
+  presenting sampled and exact figures as equivalent, and cross-validated the two
+  independent paths against a closed-form prediction.

@@ -6,6 +6,9 @@ import { createInput } from './input.js';
 import { createRunner } from './runner.js';
 import { createCameraRig } from './camera.js';
 import { createScopeCamera } from './scope/scopeCamera.js';
+import { createDeclutter } from './scope/declutter.js';
+import { createRuler } from './scope/ruler.js';
+import { createReadouts } from './scope/readouts.js';
 import { createParticleSystem } from './particles/ParticleSystem.js';
 import { createGpuEngine } from './particles/GpuEngine.js';
 import { createTrail } from './trail/Trail.js';
@@ -45,6 +48,10 @@ scene.add(game.mesh);
 
 const rig = createCameraRig(camera);
 const scopeCam = createScopeCamera(camera);
+const declutter = createDeclutter(scene);
+const ruler = createRuler(document.getElementById('scope-ruler'));
+scene.add(ruler.lines);
+const readouts = createReadouts(document.getElementById('scope-readouts'));
 const post = createPost(renderer, scene, camera, params);
 
 const activeCamera = () => (params.scope ? scopeCam.active(params) : camera);
@@ -66,12 +73,29 @@ function applyParams() {
   post.applyParams();
   renderer.setPixelRatio(params.pixelRatio);
   post.setCamera(activeCamera());
+  declutter.apply(params);
+  readouts.invalidate();
+  // Scrub only means anything in the analytic engine, where position is a
+  // closed form of time. Force it off elsewhere rather than showing a past the
+  // GPGPU engine cannot reconstruct.
+  if (params.engine !== 'analytic') params.scopeScrub = 0;
   onResize();
 }
 
 const fireScopeEvent = () => runner.triggerScopeEvent('turn', simTime, 3.2);
+
+// Advance exactly one frame while paused. timeScale has to be forced, or
+// stepping at timeScale 0 would advance nothing and look broken.
+function stepOnce(dt = 1 / 60) {
+  const saved = params.timeScale;
+  params.timeScale = saved === 0 ? 1 : saved;
+  frame(dt);
+  params.timeScale = saved;
+}
+
 input.onTrigger = fireScopeEvent;
-createGui(params, applyParams, stats, fireScopeEvent);
+input.onStep = () => stepOnce();
+createGui(params, applyParams, stats, fireScopeEvent, () => stepOnce());
 applyParams();
 
 function onResize() {
@@ -116,6 +140,7 @@ function frame(dt) {
 
   if (params.scope) scopeCam.update(runner, params);
   else rig.update(dt, runner, input);
+  ruler.update(activeCamera(), params, scopeCam.centerX, params.scopeViewHeight, scopeCam.aspect);
   // Before the emitter, so a collection burst this frame ships in the same
   // buffer upload as the runner's continuous emission.
   game.update(simDt, simTime, runner);
@@ -128,6 +153,8 @@ function frame(dt) {
     particles.update(simDt, simTime, runner);
     trail.update(simTime, runner);
   }
+
+  readouts.update(params, simTime, runner, particles, gpuEngine, renderer);
 
   renderer.info.reset();
   post.render();

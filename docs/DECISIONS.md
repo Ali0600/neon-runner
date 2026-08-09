@@ -12,6 +12,65 @@
 
 ---
 
+## D25 — Ruler ticks in-canvas, labels in the DOM
+
+**Fork:** draw the scope ruler's number labels as canvas-texture sprites, or as
+DOM elements positioned by projecting a world point.
+
+- *Sprites:* appear in a screenshot, but need a texture per zoom level to stay
+  crisp under an orthographic camera whose scale is a free parameter, and they
+  are in the canvas — so bloom can reach them and they perturb the frame hash
+  the freeze invariant depends on.
+- *DOM:* crisp at any device pixel ratio and any scale, structurally unable to
+  bloom, cannot affect the canvas hash, and verifiable by DOM assertion (label
+  count, text, monotonic positions) rather than by reading pixels.
+
+**Chosen:** DOM. **Stated cost:** the labels do not appear in a canvas-only
+screenshot, so an apparently bare ruler in a screenshot is not evidence the
+ruler is broken.
+
+Ticks themselves stay in-canvas as `LineSegments` at colour `0x2b4b66`
+(luma ≈ 0.27, under both styles' bloom thresholds of 0.75 and 0.62) and are
+rebuilt only when the tick set actually changes, so a frozen frame stays stable
+and there are no per-frame DOM writes.
+
+## D26 — Readouts carry their provenance; scrub is analytic-only
+
+Two very different measurement paths feed the same panel, so the panel says
+which one produced the numbers:
+
+- **Analytic:** the CPU already holds the spawn and velocity arrays, so the
+  **alive count is exact** — the number most likely to be misread is not an
+  estimate. Speed, plume length and spread re-evaluate the closed form over a
+  **stride** across the whole ring, never a contiguous slice: a contiguous slice
+  samples one arbitrary age band, which is how this project previously got a
+  "zero live particles" reading from a perfectly healthy engine.
+- **GPGPU:** needs a texture readback, so it uses
+  `readRenderTargetPixelsAsync` — the synchronous variant **silently no-ops** on
+  an out-of-range rect and leaves the buffer untouched, which is
+  indistinguishable from "everything is dead". Throttled, one request in flight,
+  with a generation counter so a result landing after an engine or lane change
+  is discarded rather than shown.
+
+Cross-validated: at a steady cruise the two independent paths reported 131 and
+139 alive against a closed-form prediction of 133.
+
+**Scrub** moves only the *render* clock (`uTime = simTime + scrub`), applied
+after spawning so spawn history is never rewritten, and it forces the sim to
+pause so one frame can never mix two times. It is **disabled** in the GPGPU
+engine rather than approximated: Euler integration over a variable timestep
+cannot reconstruct a past frame from a timestamp. Verified reversible — scrubbing
+away and back returns the exact original frame hash.
+
+## D27 — One owner for pickup visibility
+
+`Game.update` rewrites `mesh.visible` every frame, so declutter hiding the
+pickups was immediately overridden and two enormous glowing rings dominated the
+inspection view. Visibility now has a single owner — `Game` itself, via
+`params.game && !params.scope` — rather than two writers fighting each frame.
+The same shape as the "two writers on one element's visibility" entry already in
+`docs/learnings.md`, which is why it was recognised on sight.
+
 ## D18 — Ortho billboards use three's built-in `isOrthographic` uniform
 
 **Fork:** the billboard basis needs the direction to the camera. A perspective
