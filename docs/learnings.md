@@ -57,6 +57,27 @@ pixel bits.
 **Takeaway:** any easing that should eventually *settle* needs an epsilon snap.
 Without one, "at rest" is a state your system never actually enters.
 
+## A frame-hash harness must prove the canvas is real before reporting anything
+
+The freeze check compares two rendered frames by hashing `canvas.toDataURL()`.
+On a canvas with zero dimensions that call returns the six-character string
+`"data:,"` — so every hash is equal, and the harness reports **"frozen: yes,
+resumes: no"** for every configuration regardless of what the simulation does.
+It looks exactly like a real regression, and it cost a diagnosis chasing a
+non-existent bug in the runner.
+
+**Why it came up:** a fresh preview tab was never sized, so the canvas was 0×0.
+Two independent readings gave it away — `simTime` advanced and the runner had
+moved three world units, while the hash did not change. That combination is
+impossible if rendering is happening.
+
+**Takeaway:** any check that compares rendered output needs a liveness assertion
+on the surface itself — non-degenerate dimensions, and a data URL long enough to
+be an actual image — and should throw rather than return a verdict when they
+fail. The related trap: an `EffectComposer` sized while the viewport was
+degenerate keeps clipping to the old size until a `resize` event fires, so
+content appears cut off at a hard edge long after the window is correct.
+
 ## A billboard formula encodes an assumption about the projection
 
 `normalize(-viewPos)` is "the direction to the camera" only because a

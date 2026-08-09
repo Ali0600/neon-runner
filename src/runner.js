@@ -4,6 +4,7 @@ import dissolveFrag from './shaders/dissolve.frag.glsl?raw';
 import { wrapLane, resolvePathMode } from './scope/lane.js';
 import { buildSchedule, sampleSchedule, driveCommand } from './scope/schedule.js';
 import { WALK_SPEED, SPRINT_SPEED } from './constants.js';
+import { resolveTargetSpeed } from './speed.js';
 
 const ACCEL = 9.0; // response rate toward target velocity
 const BOUND = 180; // keep the runner inside the ground plane
@@ -163,7 +164,9 @@ export function createRunner(params) {
     let my = input.moveVec.y;
     const sprint = input.sprint || params.forceSprint;
     const mode = resolvePathMode(params);
-    let targetSpeed = sprint ? SPRINT_SPEED : WALK_SPEED;
+    // Speed requested by the active path driver, if it has an opinion. Resolved
+    // against the hold and the sprint flag once, after the branches below.
+    let commandSpeed;
 
     if (mode === 'scope') {
       // Straight lane with scripted transients. The schedule is a pure function
@@ -194,7 +197,7 @@ export function createRunner(params) {
 
       const cmd = driveCommand(sample, { turnAmplitude: params.scopeTurnAmplitude }, group.position.z);
       _target.set(cmd.dirX, 0, cmd.dirZ);
-      targetSpeed = cmd.speed;
+      commandSpeed = cmd.speed;
       mx = 0;
       my = 0;
     } else if (params.autopilot) {
@@ -217,7 +220,16 @@ export function createRunner(params) {
       if (_target.lengthSq() > 0.0001) _target.normalize();
     }
 
-    _target.multiplyScalar(targetSpeed);
+    // Direction comes from whichever driver is active; only the MAGNITUDE is
+    // resolved here, so a speed lock still lets scope turns steer.
+    _target.multiplyScalar(
+      resolveTargetSpeed({
+        hold: params.holdSpeed,
+        holdValue: params.holdSpeedValue,
+        sprint,
+        commandSpeed,
+      })
+    );
 
     // Framerate-independent exponential approach to the target velocity.
     runner.velocity.lerp(_target, 1 - Math.exp(-ACCEL * simDt));
