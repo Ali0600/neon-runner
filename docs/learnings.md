@@ -57,6 +57,42 @@ pixel bits.
 **Takeaway:** any easing that should eventually *settle* needs an epsilon snap.
 Without one, "at rest" is a state your system never actually enters.
 
+## A billboard formula encodes an assumption about the projection
+
+`normalize(-viewPos)` is "the direction to the camera" only because a
+perspective camera sits at the origin in view space. Under an orthographic
+projection every view ray is parallel, and the answer is the constant
+`vec3(0,0,1)`. Using the perspective form under ortho rotates every billboard by
+`atan(|viewPos.xy| / |viewPos.z|)` — **zero at frame centre, growing toward the
+edges**.
+
+**Why it came up:** adding an orthographic inspection view meant every streak
+would have been subtly twisted, worst exactly where you'd be reading the plume's
+outer envelope. three ships `isOrthographic` as a built-in uniform on every
+`ShaderMaterial` precisely because its own shaders hit this.
+
+**Takeaway:** any shader deriving a direction *to the camera* from a position
+has a projection assumption baked into it. The test that catches it is a
+symmetry one: under ortho, dollying the camera along its view axis must leave
+the frame bit-identical, because only view-space Z changes and it changes
+uniformly. That assertion is provably red against the perspective formula.
+
+## The negative-safe modulo idiom is not free on positive inputs
+
+`((t % p) + p) % p` is the standard way to get a non-negative remainder. On a
+positive `t` it still round-trips through an addition and a second modulo, and
+that can cost a ULP — enough to move a value that sits exactly on a boundary
+into the previous bucket.
+
+**Why it came up:** event-schedule segment starts are accumulated sums and
+mostly not exactly representable. Sampling exactly at a boundary returned the
+previous segment, which would have shown up as a one-frame flicker at every
+event join — the sort of thing dismissed as a rendering glitch for weeks.
+`t % p`, corrected only when negative, is exact for positive input.
+
+**Takeaway:** when a defensive idiom exists to handle one case, check what it
+costs the common case. Test exactly on boundaries, not just around them.
+
 ## Closed-form vs integrated simulation is a real trade, not an upgrade
 
 The analytic engine computes a particle's position as a function of its age;

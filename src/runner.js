@@ -1,9 +1,10 @@
 import * as THREE from 'three';
 import dissolveVert from './shaders/dissolve.vert.glsl?raw';
 import dissolveFrag from './shaders/dissolve.frag.glsl?raw';
+import { wrapLane, resolvePathMode } from './scope/lane.js';
+import { buildSchedule, sampleSchedule, driveCommand } from './scope/schedule.js';
+import { WALK_SPEED, SPRINT_SPEED } from './constants.js';
 
-const WALK_SPEED = 4.5;
-const SPRINT_SPEED = 17.0;
 const ACCEL = 9.0; // response rate toward target velocity
 const BOUND = 180; // keep the runner inside the ground plane
 const STRIDE = 1.35; // world units per half stride
@@ -132,6 +133,24 @@ export function createRunner(params) {
     phase: 0,
     autopilotT: 0,
     emitPoints: emitters.map(() => new THREE.Vector3()),
+    laneWrapped: false,
+    scopeOverride: null,
+    scopeSample: null,
+  };
+
+  /**
+   * Fire one scripted event immediately, independent of the schedule, so a
+   * single transient can be watched in isolation.
+   */
+  runner.triggerScopeEvent = (kind, simTime, duration) => {
+    const start = simTime;
+    runner.scopeOverride = {
+      endsAt: simTime + duration,
+      sample: (t) => {
+        const tIn = t - start;
+        return { kind, index: -1, tIn, tNorm: tIn / duration, cycle: 0, u: tIn };
+      },
+    };
   };
 
   // Everything here advances on the SIM clock, never real time. Position alone
@@ -143,8 +162,42 @@ export function createRunner(params) {
     let mx = input.moveVec.x;
     let my = input.moveVec.y;
     const sprint = input.sprint || params.forceSprint;
+    const mode = resolvePathMode(params);
+    let targetSpeed = sprint ? SPRINT_SPEED : WALK_SPEED;
 
-    if (params.autopilot) {
+    if (mode === 'scope') {
+      // Straight lane with scripted transients. The schedule is a pure function
+      // of sim time, so it freezes with everything else at timeScale 0.
+      if (
+        !runner._schedule ||
+        runner._scheduleKey !==
+          `${params.scopeInterval}|${params.scopeTurn}|${params.scopeSprint}|${params.scopeStop}`
+      ) {
+        runner._schedule = buildSchedule({
+          interval: params.scopeInterval,
+          turn: params.scopeTurn,
+          sprint: params.scopeSprint,
+          stop: params.scopeStop,
+        });
+        runner._scheduleKey = `${params.scopeInterval}|${params.scopeTurn}|${params.scopeSprint}|${params.scopeStop}`;
+      }
+
+      // A manual trigger overrides the schedule for one event's duration.
+      let sample;
+      if (runner.scopeOverride && simTime < runner.scopeOverride.endsAt) {
+        sample = runner.scopeOverride.sample(simTime);
+      } else {
+        runner.scopeOverride = null;
+        sample = sampleSchedule(runner._schedule, simTime);
+      }
+      runner.scopeSample = sample;
+
+      const cmd = driveCommand(sample, { turnAmplitude: params.scopeTurnAmplitude }, group.position.z);
+      _target.set(cmd.dirX, 0, cmd.dirZ);
+      targetSpeed = cmd.speed;
+      mx = 0;
+      my = 0;
+    } else if (params.autopilot) {
       // Lissajous figure-8 — deterministic motion for headless screenshots.
       runner.autopilotT += simDt;
       const t = runner.autopilotT * 0.45;
@@ -164,14 +217,23 @@ export function createRunner(params) {
       if (_target.lengthSq() > 0.0001) _target.normalize();
     }
 
-    _target.multiplyScalar(sprint ? SPRINT_SPEED : WALK_SPEED);
+    _target.multiplyScalar(targetSpeed);
 
     // Framerate-independent exponential approach to the target velocity.
     runner.velocity.lerp(_target, 1 - Math.exp(-ACCEL * simDt));
     if (runner.velocity.lengthSq() < 1e-4) runner.velocity.set(0, 0, 0);
 
     group.position.addScaledVector(runner.velocity, simDt);
-    group.position.x = THREE.MathUtils.clamp(group.position.x, -BOUND, BOUND);
+    if (mode === 'scope') {
+      // The lane is long enough that hitting its end is rare, but it must wrap
+      // rather than clamp — a clamped runner would sit still while the emitter
+      // kept firing into one spot.
+      const w = wrapLane(group.position.x, params.scopeLaneHalf);
+      group.position.x = w.x;
+      if (w.wrapped) runner.laneWrapped = true;
+    } else {
+      group.position.x = THREE.MathUtils.clamp(group.position.x, -BOUND, BOUND);
+    }
     group.position.z = THREE.MathUtils.clamp(group.position.z, -BOUND, BOUND);
     group.position.y = 0;
 

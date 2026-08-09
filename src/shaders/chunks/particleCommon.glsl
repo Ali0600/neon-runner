@@ -46,7 +46,13 @@ void particleBasis(vec3 viewPos, vec3 viewVel, out vec3 T, out vec3 S, out float
   speed = length(viewVel);
   T = speed > 1e-4 ? viewVel / speed : vec3(1.0, 0.0, 0.0);
 
-  vec3 toCam = normalize(-viewPos);
+  // A perspective camera sits at the view-space origin, so -viewPos is the
+  // direction to it. An orthographic camera's rays are all parallel along -Z,
+  // so that direction is the constant (0,0,1). Using the perspective form under
+  // ortho twists every billboard by atan(|viewPos.xy| / |viewPos.z|) — zero at
+  // frame centre, growing toward the edges. `isOrthographic` is a built-in
+  // three uniform, set from the active camera at draw time.
+  vec3 toCam = isOrthographic ? vec3(0.0, 0.0, 1.0) : normalize(-viewPos);
   S = cross(T, toCam);
   float sl = length(S);
   // Streak pointing straight at the camera: any perpendicular will do.

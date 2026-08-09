@@ -12,6 +12,125 @@
 
 ---
 
+## D18 — Ortho billboards use three's built-in `isOrthographic` uniform
+
+**Fork:** the billboard basis needs the direction to the camera. A perspective
+camera sits at the view-space origin so that is `normalize(-viewPos)`; an
+orthographic camera's rays are parallel along −Z so it is the constant
+`vec3(0,0,1)`. Select between them with a hand-rolled `uOrtho` uniform, a
+`#define`, or three's built-in.
+
+- *Hand-rolled uniform:* duplicates state three already tracks, and goes stale
+  the moment someone adds a camera path and forgets to set it.
+- *`#define`:* doubles the material count from 6 (3 kinds × 2 engines) to 12,
+  and doubles startup shader compiles.
+- *Built-in:* `uniform bool isOrthographic` is injected into every
+  `ShaderMaterial`'s vertex and fragment prefix, and the renderer assigns it
+  from the active camera in the same refresh block as `projectionMatrix`.
+  three's own shaders use the identical ternary.
+
+**Chosen:** the built-in. Zero new uniforms, zero new variants, and the value
+cannot desync from the camera because three writes it at draw time.
+
+**Why it mattered:** the previous formula was not merely wrong under ortho, it
+was wrong *by an amount that grows toward the screen edges* and is zero at the
+centre — the shape of error you tune around instead of noticing.
+
+**Proven fail-first.** Under an orthographic projection, translating the camera
+along its own view axis changes only view-space Z, uniformly, so NDC x/y and
+depth order are untouched: any correct billboard basis renders a bit-identical
+frame. With the fix, dollying 400 units leaves the frame hash unchanged; with
+`normalize(-viewPos)` restored, both the hash and the PNG byte length change.
+
+## D19 — Scope is a third path driver by precedence, not a `pathMode` rename
+
+**Fork:** replace the `autopilot` / `forceSprint` booleans with a single
+`pathMode: 'manual' | 'autopilot' | 'scope'` enum, or add scope as a third
+option resolved by precedence.
+
+The rename costs about eight lines in-repo. The cost that matters is outside it:
+`params` is a plain object, so every existing headless check that writes
+`__app.params.autopilot = true` would keep succeeding while doing nothing, and
+the runner would simply stand still — no error, no warning. That is the exact
+failure this project already has a learning about.
+
+**Chosen:** precedence, in one pure `resolvePathMode`. *Revisit hook:* if a
+fourth driver appears, rename then and ship a `params` deprecation shim in the
+same commit.
+
+## D20 — The event scheduler is a stateless function of sim time
+
+**Fork:** advance the event timeline with an accumulator, or evaluate it as
+`f(simTime)` over a cycling sequence.
+
+An accumulator is freeze-safe only for as long as every future author remembers
+the `simDt <= 0` guard. A pure function of sim time cannot drift while paused
+because there is nothing to drift, and it can be evaluated at any `t` — which is
+what will let it pair with the analytic engine's exact time scrubbing.
+
+**Chosen:** stateless. The freeze invariant here is structural rather than
+maintained.
+
+**Sharp edge found while building it:** the usual negative-safe modulo
+`((t % p) + p) % p` costs a ULP on *positive* inputs. Segment starts are
+accumulated sums and mostly not exactly representable, so sampling exactly on a
+boundary landed one ULP short and reported the *previous* segment — a one-frame
+flicker at every event join. Fixed to `t % p`, corrected only when negative, and
+pinned by a test over several interval values.
+
+## D21 — Lane rewind with a full clear, never a treadmill
+
+**Fork:** when the straight lane ends, wrap the runner and clear the particle
+buffers, or hold the runner still and move the world past it.
+
+A treadmill needs a synthetic wind of −v_runner. Drag is velocity-dependent in
+both engines — `(1 − e^{−kt})/k` analytically, `v *= exp(-uDrag*dt)` in the
+compute shader — so that wind changes every particle's decay, and therefore its
+`uLength + uStretch * speed` stretch. **The plume being tuned would not be the
+plume that ships.** Recorded precisely because a treadmill is the obvious idea.
+
+**Chosen:** wrap and clear. The clear runs *before* the engines update, because
+`computeSpawn` interpolates each spawn between the previous and current
+position: with a stale previous position, one frame's spawns smear as a single
+streak across the entire lane. Verified by asserting the plume's x-span on the
+first post-wrap frame is a fraction of a unit rather than the lane width — the
+buffer-reset assertions alone pass even with the smear bug present.
+
+## D22 — Lane half-length 2000, not 20000
+
+f32 resolution is 1.2e-4 at |x| = 2000 (0.4% of the 0.028 streak width) but
+2.0e-3 at 20000 (**7%**), and the vertex shader's `viewMatrix * position`
+subtracts two same-magnitude numbers, so that error lands directly on relative
+particle position — visible jitter on exactly the feature being tuned. ±2000
+still gives roughly two minutes per traversal at sprint, against a plume whose
+whole lifetime is about a second. Exposed as a slider, with this as the reason
+not to push it far.
+
+## D23 — The scope camera snaps; the follow rig eases
+
+The follow rig eases and needs epsilon snapping so a paused frame can settle.
+The scope camera's target is a pure function of the runner's position, so a
+frozen sim gives a constant target and therefore a constant camera — freeze
+safety is structural, not tuned. Measured: the scope camera needs ~40 frames to
+reach a stable frame after pausing, the follow rig ~330.
+
+The ortho frustum is sized from a world-unit **view height** with `zoom` left at
+1 — one honest number in the GUI and one source of truth for world-units-per-
+pixel, rather than two controls that mean the same thing.
+
+## D24 — Turn amplitude is capped to what the runner can physically track
+
+Lateral speed is bounded by `speed × sin(MAX_LATERAL)`, so tracking a sine of
+amplitude A over duration T needs `2πA/T` of lateral budget. The first version
+commanded amplitude 6 over a 1.6 s turn at walking pace and delivered **1.49** —
+the control was reporting a number the runner could not reach.
+
+Fixed by lengthening the turn to 3.2 s, running turns at an elevated speed
+(direction changes matter most at speed anyway), defaulting the amplitude to 4,
+and lowering the slider maximum from 20 to 8. Now delivers 2.77 of a commanded
+4. A slider whose top half does nothing is the same class of defect as the
+`maxParticles` bug in D17.
+
 ## D1 (graduated) — GPGPU ping-pong alongside the analytic engine, not replacing it
 
 Originally deferred; **built in M8**. Both engines now ship, selectable at
@@ -77,13 +196,10 @@ engine — a control that lies is worse than a missing one. The draw and the spa
 ring now honour it. The **compute** pass deliberately still covers the whole
 texture: its cost is fixed, and that is the honest performance story recorded
 above rather than something to hide.
-- **Skinned/rigged runner** (D8) — the current figure is a joint hierarchy of
-  capsules. *Revisit hook:* `createRunner` in `src/runner.js` builds the joints
-  and drives them in one block.
 
 ---
 
-## D1 — Stateless analytic particles, not GPGPU ping-pong
+## D1 (original) — Stateless analytic particles, not GPGPU ping-pong
 
 **Fork:** compute each particle's position in the vertex shader as a closed-form
 function of `uTime - spawnTime`, or advect positions through a ping-pong

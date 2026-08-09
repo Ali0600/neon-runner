@@ -127,17 +127,27 @@ export function createParticleSystem(params) {
     uniforms.uSmokeRatio.value = smoke ? params.smokeRatio : 0;
   };
 
+  // Kill every slot and rewind the ring. Used when the capacity shrinks (live
+  // particles outside the new draw range would reappear when it grows again)
+  // and on a scope lane rewind.
+  system.clear = function clear() {
+    for (let i = 0; i < CAPACITY; i++) aSpawn[i * 4 + 3] = -1e6;
+    spawnAttr.addUpdateRange(0, CAPACITY * 4);
+    spawnAttr.needsUpdate = true;
+    system.head = 0;
+    system.accum = 0;
+    system.spawnedLastFrame = 0;
+    // Forces _prev to re-seed from the runner's new position next frame.
+    // Without it, one frame's spawns interpolate across the whole lane.
+    system._prevValid = false;
+  };
+
   function setActiveCapacity(n) {
     const next = Math.max(256, Math.min(CAPACITY, Math.floor(n)));
     if (next === system.activeCapacity) return;
     system.activeCapacity = next;
     geometry.instanceCount = next;
-    system.head = 0;
-    // Shrinking leaves live particles outside the new draw range; killing every
-    // slot avoids stale ones reappearing when the range grows again.
-    for (let i = 0; i < CAPACITY; i++) aSpawn[i * 4 + 3] = -1e6;
-    spawnAttr.addUpdateRange(0, CAPACITY * 4);
-    spawnAttr.needsUpdate = true;
+    system.clear();
   }
   setActiveCapacity(params.maxParticles);
 
