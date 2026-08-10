@@ -454,3 +454,40 @@ then come apart, which is what the reference footage shows.
 
 **Takeaway:** identify which channel destroys legibility and delay it; a fade is
 usually more readable when the channels are not on the same curve.
+
+## Draw the complement instead of timing a second effect to match
+
+An object that dissolves by discarding fragments already knows, per fragment,
+which of its matter is gone. Drawing that same geometry a second time — as
+points, visible only where the first draw discards — gives you the debris for
+free, exactly conserved. No emitter, no lifetimes, no second clock.
+
+**Why it came up:** afterimages needed to scatter outward as particles instead of
+being eaten inward. The obvious route was a particle burst, but bursts here are
+analytic-engine-only, event-shaped and CPU-injected, and this had to be
+continuous, per-ghost, engine-independent and exactly frozen at `timeScale = 0`.
+Inverting the existing discard test satisfied all four by construction, and
+because flight distance is a function of *how far past* the erosion front a
+vertex is, the scatter inherited the dissolve's feet-first order without being
+told about it.
+
+**Takeaway:** when an effect needs to hand matter over to another effect, look
+for a predicate the first one already computes and render its complement, rather
+than building a second system and keeping the two in step.
+
+## A shared displacement field inflates a shape; it does not break it up
+
+Pushing every vertex along its own surface normal by a smoothly-varying amount
+produces an inflated copy of the object, not a cloud. Neighbouring vertices get
+near-identical displacement, so the silhouette survives at any magnitude — the
+sparks read as ghost outlines however far they travel.
+
+**Why it came up:** the first spark implementation looked like a slightly offset
+duplicate of the runner's limbs. Raising the displacement 6× changed nothing
+about that; it just made a bigger outline. What fixed it was giving each vertex
+an independent direction on the full sphere and, more importantly, its **own
+speed** — the per-particle speed spread is what decorrelates neighbours.
+
+**Takeaway:** dispersal needs per-element variance, not magnitude. If a scatter
+still reads as the original shape, add randomness per element before adding more
+distance.

@@ -77,6 +77,20 @@ exactly like "most of the scene stopped drawing". `gl.readPixels` on the default
 framebuffer is also not trustworthy here (no `preserveDrawingBuffer`); prefer `toDataURL`
 immediately after a synchronous render, or a screenshot.
 
+**Wait for a non-empty frame before treating any capture as evidence.** `applyParams`
+resizes the composer, and entering SCOPE hands back a pure-black frame for a while
+afterwards — always the same `toDataURL` byte count (~112 KB at 2560×1600), which is the
+tell that it is one specific empty image rather than the scene. Two black frames compare
+equal and a third one after resuming compares equal too, so the gate reports "frozen: yes,
+resumes: no" for a scene that is rendering perfectly. Step until the capture exceeds a
+size floor (bounded, and fail if it never does) before hashing.
+
+Related, and *not* a defect: while the scope scheduler is running a jump or wall-run the
+camera height-follows the runner and leaves the whole chain below frame, so that frame is
+legitimately near-empty and its resumed copy is identical because nothing in it moves. The
+twelve combinations are about engine × style × camera, so step until the runner is
+**grounded** before hashing them; airborne cases are covered by the three vertical states.
+
 **A frame-hash harness must prove the canvas is real before reporting anything.** On a
 0×0 canvas `toDataURL()` returns the six-character string `"data:,"`, every hash compares
 equal, and the freeze check reports "frozen: yes, resumes: no" for every configuration —

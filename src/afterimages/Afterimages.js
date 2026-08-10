@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import ghostVert from '../shaders/ghost.vert.glsl?raw';
 import ghostFrag from '../shaders/ghost.frag.glsl?raw';
+import sparkVert from '../shaders/ghostSparks.vert.glsl?raw';
+import sparkFrag from '../shaders/ghostSparks.frag.glsl?raw';
 import dissolveNoise from '../shaders/chunks/dissolveNoise.glsl?raw';
 import {
   MAX_GHOSTS,
@@ -65,6 +67,11 @@ export function createAfterimages(params, runner) {
       uColorA: { value: new THREE.Color(params.colorA) },
       uColorB: { value: new THREE.Color(params.colorB) },
       uColorC: { value: new THREE.Color(params.colorC) },
+      // Spark-only. They live in the same object so one write drives both
+      // materials; the mesh program simply never looks them up.
+      uSparkReach: { value: params.ghostSparkReach ?? 1.1 },
+      uSparkSize: { value: params.ghostSparkSize ?? 0.045 },
+      uViewportH: { value: 1080 },
     };
     const material = new THREE.ShaderMaterial({
       vertexShader: ghostVert,
@@ -84,7 +91,33 @@ export function createAfterimages(params, runner) {
     mesh.renderOrder = 1; // with the trail and the streaks, over the smoke layer
     mesh.visible = false;
     group.add(mesh);
-    slots.push({ mesh, uniforms, rec: null });
+
+    // The debris: the same geometry and the same uniforms, drawn as points.
+    // ShaderMaterial keeps the uniforms object by reference, so the mesh and its
+    // sparks cannot drift out of step — there is one erosion value, not two.
+    const sparkMaterial = new THREE.ShaderMaterial({
+      vertexShader: dissolveNoise + sparkVert,
+      fragmentShader: sparkFrag,
+      uniforms,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    });
+    const sparks = new THREE.Points(geometry, sparkMaterial);
+    sparks.frustumCulled = false;
+    sparks.renderOrder = 1;
+    sparks.visible = false;
+    group.add(sparks);
+
+    slots.push({ mesh, sparks, uniforms, rec: null });
+  }
+
+  // One owner for a slot's visibility: the mesh and its sparks are one object as
+  // far as the rest of the system is concerned, and a second writer that set only
+  // one of them would leave debris hanging with no body or vice versa.
+  function setSlotVisible(slot, v) {
+    slot.mesh.visible = v;
+    slot.sparks.visible = v;
   }
 
   // Oldest-first, like the trail's samples. Each record holds the slot it owns.
@@ -100,7 +133,7 @@ export function createAfterimages(params, runner) {
 
   function release(rec) {
     if (!rec) return;
-    rec.slot.mesh.visible = false;
+    setSlotVisible(rec.slot, false);
     rec.slot.rec = null;
   }
 
@@ -121,7 +154,7 @@ export function createAfterimages(params, runner) {
     // alone, not on the speed it was captured at.
     const rec = { t: simTime, slot };
     slot.rec = rec;
-    slot.mesh.visible = true;
+    setSlotVisible(slot, true);
     release(pushSnapshot(live, rec, params.ghostCount));
 
     if (!lastSnap) lastSnap = new THREE.Vector3();
@@ -154,7 +187,7 @@ export function createAfterimages(params, runner) {
       const strength = ghostStrength(rec.t, simTime, fade);
       rec.slot.uniforms.uStrength.value = strength;
       rec.slot.uniforms.uErosion.value = ghostErosion(strength);
-      rec.slot.mesh.visible = strength > 0;
+      setSlotVisible(rec.slot, strength > 0);
     }
     afterimages.alive = countAlive(live, simTime, fade);
   };
@@ -178,10 +211,22 @@ export function createAfterimages(params, runner) {
 
     for (const slot of slots) {
       slot.uniforms.uGain.value = gain;
+      slot.uniforms.uSparkReach.value = params.ghostSparkReach ?? 1.1;
+      slot.uniforms.uSparkSize.value = params.ghostSparkSize ?? 0.045;
       slot.uniforms.uColorA.value.set(params.colorA);
       slot.uniforms.uColorB.value.set(params.colorB);
       slot.uniforms.uColorC.value.set(params.colorC);
     }
+  };
+
+  /**
+   * Drawing-buffer height, so a spark keeps a constant WORLD size instead of a
+   * constant pixel size — otherwise the burst changes scale with the window and
+   * looks different in each scope projection.
+   */
+  afterimages.setViewport = function setViewport(pixelHeight) {
+    if (!(pixelHeight > 0)) return;
+    for (const slot of slots) slot.uniforms.uViewportH.value = pixelHeight;
   };
 
   afterimages.applyParams();

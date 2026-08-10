@@ -40,8 +40,12 @@ Two things worth knowing, because neither is obvious from the panel:
   pose behind it — each one a real snapshot of the figure at that instant, the
   ten body matrices copied straight off the live body, so the lean, the bob and
   the wall-climb orientation all come along for free. Each starts as a nearly
-  complete figure and dissolves with the same noise grain as the runner, dimming
-  first and coming apart late, cooling from cyan to magenta as it ages.
+  complete figure and does not fade where it stands: the matter it loses to
+  erosion is redrawn as particles flying outward, so a ghost comes apart into a
+  scattering cloud, feet first, cooling from cyan to magenta as it goes. The
+  sparks are the *complement* of the surviving silhouette — the same geometry
+  drawn a second time as points, visible exactly where the mesh has given that
+  matter up, so the conversion is exact rather than two effects timed to match.
   Selecting `afterimages` stops the plume at its source rather than hiding it,
   so live particles age out naturally and the readouts keep telling the truth;
   the takeoff, landing and pickup bursts stay in every mode. Four extra light

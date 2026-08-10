@@ -84,6 +84,12 @@ export const params = {
   // overwrites it: ghostFade <= ghostSpacing * ghostCount / SPRINT_SPEED
   // (1.4 <= 1.48 here). Past that the tail pops out early rather than fading —
   // which is why a longer fade needed a bigger ring, not just a bigger number.
+
+  // A ghost does not fade out where it stands — the matter it loses to erosion
+  // is redrawn as particles flying outward, so the death reads as scattering
+  // rather than as the silhouette being eaten inward.
+  ghostSparkReach: 0.8, // scales how far the debris travels as it ages
+  ghostSparkSize: 0.045, // spark diameter, in world units at any zoom
   limbStreaks: true,
   limbStreakWidth: 0.45, // multiplier on trailWidth
 
