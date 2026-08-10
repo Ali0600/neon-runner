@@ -12,6 +12,37 @@
 
 ---
 
+## D35 — Sprint FX is a mode, and turning the plume off means not spawning it
+
+**Fork:** the inFamous-style afterimage sprint is a *second* look, not a
+replacement. How should it sit beside the existing particle plume?
+
+- *A style preset key:* free GUI wiring, but style presets are replaced wholesale
+  on a switch — flipping neon↔smoke would silently reset the user's choice of
+  effect. A style is a palette; this is a different effect.
+- *A boolean "also draw afterimages":* half the verification surface, but the new
+  look could never be seen on its own, which is the main thing you want while
+  tuning it.
+- *A three-way engine-owned mode* `plume | afterimages | both`.
+
+**Chosen:** the three-way mode, engine-owned (below the spread in `params.js`),
+default `plume` so nothing changes for an existing user. The three gates
+(`plumeEnabled`, `emitsGhosts`, `limbStreaksActive`) live in
+`src/afterimages/logic.js` as the single source of truth, rather than each system
+testing the string itself — a mode added to the dropdown but missed by one system
+is exactly the silent no-op this repo keeps re-learning.
+
+**How `afterimages` mode turns the plume off:** by returning 0 from
+`emissionRate`, not by hiding the meshes. Hiding would freeze a plume mid-air and
+leave the SCOPE readouts reporting particles nobody can see; stopping the source
+lets the live ones age out on their own. One-off **bursts** (takeoff, landing,
+pickups) deliberately survive the gate — they are event feedback, not sprint
+plume, and losing them would make jumps feel dead in the new mode.
+
+**Status of alternatives:** style-preset key — `rejected — a style switch would
+reset it`; boolean overlay — `rejected — the new look could never be inspected
+alone`.
+
 ## D34 — The SCOPE wall is a prop; the climb itself is scripted
 
 **Fork:** SCOPE needed a wall for the `wallrun` event. The lane is a straight

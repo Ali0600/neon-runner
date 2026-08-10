@@ -220,6 +220,59 @@ const CASES = [
     repl: '      speed = walk + (sprint - walk) * 0.8;',
     expect: 'is continuous across every segment boundary',
   },
+
+  // --- src/afterimages/logic.js ---
+  {
+    name: 'afterimages: snapshot regardless of how far the runner moved',
+    file: 'src/afterimages/logic.js',
+    find: '  return dx * dx + dy * dy + dz * dz >= spacing * spacing;',
+    repl: '  return true;',
+    expect: 'does not fire while the runner has not moved far enough',
+  },
+  {
+    name: 'afterimages: measure the snapshot gap on the ground plane only',
+    file: 'src/afterimages/logic.js',
+    find: '  return dx * dx + dy * dy + dz * dz >= spacing * spacing;',
+    repl: '  return dx * dx + dz * dz >= spacing * spacing;',
+    expect: 'measures distance in 3D so a wall climb still emits',
+  },
+  {
+    name: 'afterimages: drop the sprint-glow gate',
+    file: 'src/afterimages/logic.js',
+    find: '  if (!(dissolve >= minDissolve)) return false;',
+    repl: '',
+    expect: 'requires the sprint glow',
+  },
+  {
+    name: 'afterimages: let the ring grow past its cap',
+    file: 'src/afterimages/logic.js',
+    find: '  return list.length > cap ? list.shift() : null;',
+    repl: '  return null;',
+    expect: 'drops the oldest when full',
+  },
+  {
+    name: 'afterimages: a fade that never quite reaches zero',
+    file: 'src/afterimages/logic.js',
+    find: '  if (age >= fadeSeconds) return 0;',
+    repl: '  if (age >= fadeSeconds) return 0.02;',
+    expect: 'is full at capture and zero at the end of the fade',
+  },
+  {
+    name: 'afterimages: erode ghosts with the live body cap (leaves sparkles)',
+    file: 'src/afterimages/logic.js',
+    find: '  return FULL_EROSION + (live - FULL_EROSION) * strength;',
+    repl: '  return live + (1 - strength) * 0.95;',
+    expect: 'erodes past the noise ceiling at zero strength',
+  },
+
+  // --- src/particles/spawnComputation.js ---
+  {
+    name: 'spawn: keep the plume running in the afterimages mode',
+    file: 'src/particles/spawnComputation.js',
+    find: '  if (!plumeEnabled(params.sprintFx)) return 0;',
+    repl: '',
+    expect: 'stops the continuous plume in the afterimages mode',
+  },
 ];
 
 // --- crash safety ----------------------------------------------------------
