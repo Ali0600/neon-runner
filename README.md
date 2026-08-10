@@ -11,8 +11,24 @@ npm install
 npm run dev
 ```
 
-Then open http://localhost:5173. **WASD** to move, **hold Shift** to sprint,
-**drag** to orbit. The panel on the right retunes everything live.
+Then open http://localhost:5173. The panel on the right retunes everything live.
+
+## Controls
+
+| | |
+| --- | --- |
+| **WASD** | move |
+| **hold Shift** | sprint — the runner dissolves and emission spikes |
+| **drag** | orbit the camera (follow view only; SCOPE is locked side-on) |
+| **T** | fire one SCOPE event immediately, to watch a single transient |
+| **.** | step one frame while paused |
+
+Two things worth knowing, because neither is obvious from the panel:
+
+- **SCOPE view** is the `SCOPE VIEW` checkbox in the **Scope** folder, second from the
+  bottom of the panel. It lays the effect out along a straight line for inspection.
+- **If the sim seems stuck**, the time scrub pauses it by design. Return the scrub to 0,
+  press **▶ resume** in the Scope folder, or set `time scale` back to 1 in **Sim**.
 
 ## Features
 
@@ -98,8 +114,13 @@ while the analytic engine pays only for what is alive.
 | `src/particles/ringRanges.js`, `slotUv.js` | Pure ring→update-range and slot→texel mappings (unit tested) |
 | `src/shaders/chunks/particleCommon.glsl` | Billboard and sizing maths shared by both engines' vertex shaders |
 | `src/runner.js` | Kinematics, joint hierarchy, run cycle, dissolve material |
+| `src/speed.js`, `src/constants.js` | Pure speed-precedence resolution; shared motion constants |
 | `src/trail/Trail.js` | Position sampling and ribbon rebuild |
 | `src/camera.js` | Third-person follow rig with epsilon-snapped easing |
+| `src/scope/scopeCamera.js`, `declutter.js`, `ruler.js`, `readouts.js` | SCOPE camera rig, backdrop suppression, ruler, live readouts |
+| `src/scope/schedule.js`, `lane.js`, `rulerTicks.js`, `statsMath.js` | Pure: event scheduling, lane wrap, tick selection, stat reducers |
+| `src/game/Game.js`, `src/game/logic.js` | Pickup rings and HUD; pure placement, swept collection, combo |
+| `src/styles.js` | Plain-data style presets and the switch that applies them |
 | `src/shaders/*.glsl` | Particle, trail and dissolve shaders |
 | `src/post.js`, `src/gui.js`, `src/scene.js`, `src/input.js` | Bloom chain, panel, world, keyboard |
 
