@@ -21,7 +21,13 @@ export function createCameraRig(camera, city = []) {
     // Orbit drag adds to the base yaw; when moving, the rig eases back behind
     // the runner so the trail stays in frame.
     let baseYaw = rig.yaw;
-    if (runner.speed > 1.0) {
+    // HORIZONTAL speed, not `runner.speed`, which is 3D. On a wall the runner
+    // is moving at 20 u/s with x and z both exactly zero, so the 3D test passes
+    // and `atan2(0, 0)` hands back 0 — the rig would swing to an arbitrary
+    // compass direction and end up inside the building. Holding the last
+    // heading keeps the camera where it was when the runner hit the wall,
+    // which is behind them, looking up the face.
+    if ((runner.groundSpeed ?? runner.speed) > 1.0) {
       const behind = Math.atan2(runner.velocity.x, runner.velocity.z) + Math.PI;
       let delta = behind - rig.yaw;
       delta = Math.atan2(Math.sin(delta), Math.cos(delta));

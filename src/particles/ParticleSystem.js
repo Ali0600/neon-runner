@@ -1,6 +1,11 @@
 import * as THREE from 'three';
 import { computeUpdateRanges } from './ringRanges.js';
-import { takeSpawnCount, emissionRate, computeSpawn } from './spawnComputation.js';
+import {
+  takeSpawnCount,
+  emissionRate,
+  computeSpawn,
+  fillSpawnContext,
+} from './spawnComputation.js';
 import commonChunk from '../shaders/chunks/particleCommon.glsl?raw';
 import vertexBody from '../shaders/particles.vert.glsl?raw';
 import fragmentShader from '../shaders/particles.frag.glsl?raw';
@@ -190,14 +195,7 @@ export function createParticleSystem(params) {
     const head = system.head;
     const prevTime = simTime - simDt;
 
-    _ctx.emitPoints = runner.emitPoints;
-    _ctx.position = runner.position;
-    _ctx.prev = _prev;
-    _ctx.velocity = runner.velocity;
-    _ctx.jitter = 0.1 + runner.dissolve * 0.22;
-    _ctx.spread = params.spread;
-    _ctx.rise = params.riseBias;
-    _ctx.lifetime = params.lifetime;
+    fillSpawnContext(_ctx, runner, params, _prev);
 
     for (let k = 0; k < n; k++) {
       const idx = (head + k) % cap;

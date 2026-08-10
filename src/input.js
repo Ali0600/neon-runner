@@ -12,6 +12,11 @@ const KEYS = {
   ArrowLeft: 'l',
   KeyD: 'r',
   ArrowRight: 'r',
+  // Routed through the same map as movement rather than kept as its own flag,
+  // so `press('jump')` works from the console the way `press('f')` does. The
+  // sprint boolean is the counter-example: it lives outside `down` and is
+  // therefore unreachable from the verification hooks.
+  Space: 'jump',
 };
 
 export function createInput(domElement) {
@@ -19,9 +24,15 @@ export function createInput(domElement) {
   const state = {
     moveVec: new THREE.Vector2(0, 0), // x = strafe, y = forward
     sprint: false,
+    jump: false, // held
+    jumpPressed: false, // edge, consumed by update()
     orbitYaw: 0,
     orbitPitch: 0,
   };
+
+  // Set on keydown, cleared once update() has published it. `e.repeat` already
+  // makes keydown a true edge, so autorepeat cannot fake a second press.
+  let jumpEdge = false;
 
   let dragging = false;
   let lastX = 0;
@@ -37,7 +48,11 @@ export function createInput(domElement) {
   function onKeyDown(e) {
     if (e.repeat || isTyping()) return;
     if (KEYS[e.code]) {
+      if (KEYS[e.code] === 'jump' && !down.has('jump')) jumpEdge = true;
       down.add(KEYS[e.code]);
+      // Space with a lil-gui BUTTON focused (fire / step / resume) would
+      // otherwise re-activate it as well as jumping — isTyping() only covers
+      // INPUT, TEXTAREA and contentEditable, not BUTTON.
       e.preventDefault();
     }
     if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') state.sprint = true;
@@ -57,6 +72,11 @@ export function createInput(domElement) {
   function clearAll() {
     down.clear();
     state.sprint = false;
+    // A blur mid-climb must not leave a pending edge to fire on return, and
+    // clearing `down` is what stops the runner climbing forever.
+    jumpEdge = false;
+    state.jump = false;
+    state.jumpPressed = false;
     dragging = false;
   }
 
@@ -97,10 +117,17 @@ export function createInput(domElement) {
     const y = (down.has('f') ? 1 : 0) - (down.has('b') ? 1 : 0);
     state.moveVec.set(x, y);
     if (state.moveVec.lengthSq() > 1) state.moveVec.normalize();
+    state.jump = down.has('jump');
+    state.jumpPressed = jumpEdge;
+    jumpEdge = false;
   };
 
   // Verification hook: lets the console drive movement without real key events.
-  state.press = (k) => down.add(k);
+  // Takes the mapped token ('f', 'jump'), not the raw code.
+  state.press = (k) => {
+    if (k === 'jump' && !down.has('jump')) jumpEdge = true;
+    down.add(k);
+  };
   state.release = (k) => down.delete(k);
 
   return state;

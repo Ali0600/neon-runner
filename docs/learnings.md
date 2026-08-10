@@ -283,3 +283,50 @@ theories.
 **Takeaway:** always check the sample point is inside the frustum first and fail
 loudly if not; an off-screen `readPixels` returns black, which reads exactly
 like "the object contributes nothing".
+
+## A collider padded for one actor swallows another actor's ray origin
+
+A camera sightline test grows each obstacle by the camera's radius so the near
+plane never clips a surface. But the runner stands, and climbs, at its *own*
+smaller radius from a wall — which is inside the padded box. The ray origin is
+then inside the obstacle, the slab test returns `tMin = 0`, and the camera
+collapses onto the runner.
+
+**Why it came up:** `BODY_RADIUS` is 0.45 and `CAM_RADIUS` is 0.6, so this was
+true for the whole of every wall-run, not for some corner case. Measured as the
+camera sitting 1.5 units from the runner instead of 9.2.
+
+**Takeaway:** when a query pads geometry, check whether the query's own origin
+can fall inside the padding. If it can, skip that object — an obstacle you are
+already touching cannot occlude the view of you.
+
+## Report the velocity even when you did not integrate with it
+
+A state machine advanced the runner's height directly (`y += speed * dt`) and
+reported `vy = 0`, because it did not need a velocity to move. Everything
+downstream — the emission gate, the dissolve ramp, the gait, the trail — reads
+`runner.velocity` to decide how fast the runner is going, and unanimously
+concluded it was standing still.
+
+**Why it came up:** the particle plume switched off for the entire wall-run,
+which is the single thing that feature exists to show. Nothing errored; the
+climb worked perfectly and looked empty.
+
+**Takeaway:** if a value is part of the interface other systems read, it has to
+be correct even when your own code does not consume it. "I did not need it" is
+not a reason to leave it at zero — a stale or zeroed field on a shared object is
+indistinguishable from a real measurement.
+
+## Check a precondition in one place, not once per branch
+
+Grabbing a wall required a key held, a wall in reach, and enough speed. The
+ground branch tested all three; the air branch tested two. Releasing mid-climb
+dropped the runner into `air` for one frame, which re-grabbed the same wall on
+the next — an oscillation that looked exactly like the key doing nothing.
+
+**Why it came up:** the two branches were written minutes apart and each read
+correctly on its own. Only driving the real input path exposed it.
+
+**Takeaway:** compute a compound precondition once, above the branches, and let
+every branch use that single name. And test the negative case — the positive
+("does grab a wall") passed throughout.

@@ -12,6 +12,72 @@
 
 ---
 
+## D33 — Space is one verb, and the wall decides what it means
+
+**Fork:** *Second Son* has no wall-run button — holding the Light Speed dash makes
+Delsin run over obstacles and up walls automatically, and jump is a separate
+button pressed *during* that run. The user asked instead for "hold Space near a
+building while running". Three ways to reconcile them:
+
+- *Two keys:* Space to jump, another to climb. Honest, and one more thing to
+  learn for a sandbox whose whole input surface is WASD + Shift.
+- *Automatic on contact:* sprint into a wall and climb it, game-accurate. But
+  every accidental brush with a building becomes a climb, and the user asked for
+  a deliberate control.
+- *One key, context decides:* tap = jump, hold with a wall in reach and moving
+  above `WALL_MIN_SPEED` = climb.
+
+**Chosen:** one key. The wall-in-reach test is what disambiguates, so the same
+press means "jump" in the open and "climb" against a building — and holding it
+while running at a tower does the thing you meant without a second press at the
+wall.
+
+Mounting requires actual speed (`WALL_MIN_SPEED = 8`), so leaning on the key
+while walking into a wall does not levitate you up it; that gate is what keeps
+"hold Space" from being a general anti-gravity toggle.
+
+**Status of alternatives:** two keys — `rejected — a second binding for a mode
+the first one can infer`. Fully automatic — `deferred — worth trying` as an
+option; *revisit hook:* it is the `canMount` predicate in `src/vertical.js`, and
+dropping the key term from it is the whole change.
+
+## D32 — The vertical axis is a pure state machine, frozen by construction
+
+**Fork:** the runner had no y axis at all — `group.position.y = 0` ran
+unconditionally every frame. Gravity, a jump impulse and a climb could go
+straight into `runner.update` beside the existing steering, or into a separate
+pure module.
+
+- *In `runner.update`:* fewer moving parts, and it is where the velocity already
+  lives. But `runner.js` imports three and every `.glsl`, so none of it could be
+  unit-tested, and this project's entire test suite is pure modules.
+- *A pure module:* `stepVertical(state, input) -> state` over scalars, with the
+  caller resolving the city queries first — the same shape as
+  `resolveTargetSpeed`.
+
+**Chosen:** the pure module. It bought the thing that matters most here: **the
+freeze invariant is unit-tested.** Every term multiplies by `simDt` and nothing
+eases, so `timeScale = 0` is a fixed point by construction, and `test/vertical.js`
+asserts exactly that for all three modes — a regression now fails in
+milliseconds instead of in a twelve-combination browser gate.
+
+Two defects came out of the browser rather than the tests, and both are now
+pinned:
+
+- **The climb reported `vy = 0`.** Position was advanced directly, so velocity
+  was not needed to move — but the emission gate, the dissolve ramp, the gait and
+  the trail all read the runner's velocity to decide how fast it is going. They
+  concluded the runner was standing still, and *the plume switched off for the
+  entire climb*, which is most of what the feature exists to show.
+- **The mount precondition was split across branches.** The ground branch tested
+  the key, the air branch did not. Releasing mid-climb dropped the runner into
+  `air` for one frame, which re-grabbed the same wall on the next — the climb
+  continued with `vy` pinned at zero and the key did nothing. Both halves of the
+  pair are tested now; only the negative one catches it.
+
+**Status of alternatives:** inline in `runner.update` — `rejected — untestable,
+and the freeze invariant is the project's hard gate`.
+
 ## D31 — A follow camera clears architecture by pulling IN, not by pushing OUT
 
 **Fork:** the rig lerps to a computed point with nothing stopping it entering a

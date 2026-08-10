@@ -3,6 +3,9 @@ import { pickupLayout, sweptCollect, comboStep, scoreFor } from './logic.js';
 
 const SAVE_KEY = 'neon-runner.save.v1';
 const RESPAWN_DELAY = 6; // sim seconds
+// How far above a ring the runner can be and still collect it. Generous enough
+// that a jump through one counts, tight enough that a climb does not.
+const PICKUP_REACH_Y = 2.6;
 const BASE_SCORE = 100;
 
 const COMBO_CFG = { sprintSpeed: 12, growPerSec: 0.45, decayPerSec: 1.6, max: 8 };
@@ -122,7 +125,15 @@ export function createGame(params, particles) {
       persist();
     }
 
-    const hits = sweptCollect(_prevPos, runner.position, pickups, params.collectRadius);
+    // The rings float at y = 1.25 and the sweep is XZ-only, so it needs a
+    // vertical bound or a runner up a wall harvests the whole field below.
+    const hits = sweptCollect(
+      _prevPos,
+      runner.position,
+      pickups,
+      params.collectRadius,
+      PICKUP_REACH_Y
+    );
     for (const i of hits) {
       const p = pickups[i];
       p.active = false;
