@@ -8,7 +8,7 @@ imported with `?raw`.
 
 ```
 npm run dev      # http://localhost:5173
-npm test         # vitest, 103 tests
+npm test         # vitest, 137 tests
 npm run build    # production build
 ```
 
@@ -49,7 +49,7 @@ believing the failure. That has been the actual cause more often than the code h
 
 **Pure logic lives in dependency-free modules** so it is unit-testable without a renderer:
 `scope/schedule.js`, `scope/lane.js`, `scope/rulerTicks.js`, `scope/statsMath.js`,
-`game/logic.js`, `speed.js`, `particles/ringRanges.js`, `particles/slotUv.js`. A module
+`game/logic.js`, `speed.js`, `city.js`, `particles/ringRanges.js`, `particles/slotUv.js`. A module
 that imports `runner.js` transitively pulls in three and every `.glsl`, and will not load
 in plain node — that is why shared constants sit in `src/constants.js`.
 

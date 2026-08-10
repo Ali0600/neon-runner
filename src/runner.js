@@ -5,10 +5,12 @@ import { wrapLane, resolvePathMode } from './scope/lane.js';
 import { buildSchedule, sampleSchedule, driveCommand } from './scope/schedule.js';
 import { WALK_SPEED, SPRINT_SPEED } from './constants.js';
 import { resolveTargetSpeed } from './speed.js';
+import { slideXZ } from './city.js';
 
 const ACCEL = 9.0; // response rate toward target velocity
 const BOUND = 180; // keep the runner inside the ground plane
 const STRIDE = 1.35; // world units per half stride
+const BODY_RADIUS = 0.45; // collision footprint, a little wider than the torso
 
 // Scratch — the animate loop must not allocate.
 const _target = new THREE.Vector3();
@@ -23,7 +25,7 @@ function limb(material, radius, length) {
   return new THREE.Mesh(geo, material);
 }
 
-export function createRunner(params) {
+export function createRunner(params, city = []) {
   const group = new THREE.Group();
 
   const material = new THREE.ShaderMaterial({
@@ -248,6 +250,14 @@ export function createRunner(params) {
     }
     group.position.z = THREE.MathUtils.clamp(group.position.z, -BOUND, BOUND);
     group.position.y = 0;
+
+    // Buildings are solid. Skipped in scope, whose lane runs out to x = +-2000
+    // across ground the city does not cover and which declutters it anyway.
+    if (mode !== 'scope') {
+      const hit = slideXZ(city, group.position.x, group.position.z, group.position.y, BODY_RADIUS);
+      group.position.x = hit.x;
+      group.position.z = hit.z;
+    }
 
     runner.speed = runner.velocity.length();
 

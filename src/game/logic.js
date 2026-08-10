@@ -36,6 +36,50 @@ export function placePickups(rng, count, radius, minDist) {
   return out;
 }
 
+// Where the pickups are. These live here rather than in Game.js because the
+// city layout has to avoid them, and a second copy of the seed and counts would
+// drift the moment either side was retuned — the buildings would then be placed
+// against a ring field that no longer exists.
+export const PICKUP_SEED = 20260808;
+export const PICKUP_COUNT = 22;
+export const PICKUP_FIELD_RADIUS = 95;
+export const PICKUP_MIN_SEPARATION = 11;
+
+// The autopilot flies a Lissajous figure-8; seeding a few pickups onto it means
+// the demo collects things without the autopilot ever steering. Steering toward
+// mutable game state would make every headless verification depend on game
+// tuning, and the autopilot is the verification workhorse.
+export const AUTOPILOT_TS = [0.6, 1.9, 3.3, 4.7, 6.1, 7.4];
+
+export function autopilotPoint(t) {
+  return { x: Math.sin(t) * 34, z: Math.sin(t * 2) * 20 };
+}
+
+/** Every pickup position, on-path ones first. Deterministic. */
+export function pickupLayout() {
+  const rng = mulberry32(PICKUP_SEED);
+  const scattered = placePickups(
+    rng,
+    PICKUP_COUNT,
+    PICKUP_FIELD_RADIUS,
+    PICKUP_MIN_SEPARATION
+  );
+  return [...AUTOPILOT_TS.map(autopilotPoint), ...scattered];
+}
+
+/**
+ * The autopilot's whole closed path, sampled evenly. Anything placed in the
+ * world has to stay clear of this, not merely of the pickups sitting on it —
+ * the autopilot never steers, so a building in its way is a permanent collision.
+ */
+export function autopilotPath(samples = 64) {
+  const out = [];
+  for (let i = 0; i < samples; i++) {
+    out.push(autopilotPoint((i / samples) * Math.PI * 2));
+  }
+  return out;
+}
+
 /**
  * Squared distance from point p to the segment ab, in the XZ plane.
  */
