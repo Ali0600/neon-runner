@@ -12,6 +12,35 @@
 
 ---
 
+## D37 — The limb streaks are four more trails, not one multi-source ribbon
+
+**Fork:** the sprint needs long light streaks off the hands and feet. The existing chest
+ribbon already does exactly this, once.
+
+- *One geometry with four sources:* three fewer draw calls.
+- *Four instances of `createTrail`, behind optional hooks.*
+
+**Chosen:** four instances. Each ribbon needs its own oldest-first sample array, its own
+minimum-step test **against its own last sample**, and a contiguous triangle-strip draw
+range — packing four into one buffer means either per-ribbon draw-range bookkeeping or
+degenerate-triangle stitching, to save three draw calls in a scene that already runs a
+multi-pass composer. Reuse also inherits the ortho-correct billboarding and the ribbon's
+existing freeze proof rather than restating either.
+
+`createTrail(params, opts)` grew four hooks — `getPoint`, `getWidth`, `shouldEmit`,
+`getVisible` — each defaulting to precisely what the chest ribbon did before, including
+the `+1.0` chest offset that used to be inline in `update`. The chest ribbon had no tests
+at all, so `test/trail.test.js` now pins those defaults; the whole risk of the refactor is
+a default that quietly stopped matching.
+
+**Why the streak sources are not `emitPoints`.** Those are the elbow and knee *pivots*,
+they sit mid-limb, and the plume picks from them at random — appending four tip points
+would have changed where the plume comes from as a side effect of adding streaks. The tips
+are a separate `runner.streakPoints`.
+
+**Status of alternatives:** one multi-source geometry — `rejected — bookkeeping for three
+draw calls`.
+
 ## D36 — An afterimage is a copy of the pose, not a re-derivation of it
 
 **Fork:** a ghost needs the runner's pose. The gait is 8 joint rotations plus a bob and a

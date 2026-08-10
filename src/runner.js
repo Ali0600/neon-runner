@@ -139,6 +139,16 @@ export function createRunner(params, city = []) {
   // the hands and feet rather than out of an abstract box around the runner.
   const emitters = [armL.elbow, armR.elbow, legL.knee, legR.knee, torso, head];
 
+  // Hands and feet, as an offset down each lower limb from its pivot. The
+  // offsets are the lower limb's length plus both cap radii, i.e. the far tip of
+  // the capsule `limb()` built — see the geometry above.
+  const streakTips = [
+    [armL.elbow, -(0.22 + 0.058 * 2)],
+    [armR.elbow, -(0.22 + 0.058 * 2)],
+    [legL.knee, -(0.3 + 0.07 * 2)],
+    [legR.knee, -(0.3 + 0.07 * 2)],
+  ];
+
   // Every mesh the figure is drawn from, in a fixed order. Afterimages merge
   // these ten geometries into one buffer and index them by that order, so the
   // list IS the aJoint contract — reordering it silently re-attaches every
@@ -175,6 +185,7 @@ export function createRunner(params, city = []) {
     phase: 0,
     autopilotT: 0,
     emitPoints: emitters.map(() => new THREE.Vector3()),
+    streakPoints: streakTips.map(() => new THREE.Vector3()),
     bodyMeshes,
     laneWrapped: false,
     scopeOverride: null,
@@ -451,6 +462,15 @@ export function createRunner(params, city = []) {
     group.updateWorldMatrix(true, true);
     for (let i = 0; i < emitters.length; i++) {
       runner.emitPoints[i].setFromMatrixPosition(emitters[i].matrixWorld);
+    }
+
+    // Limb TIPS, for the streak ribbons. Deliberately not folded into
+    // emitPoints: those are the elbow and knee pivots, they sit mid-limb, and
+    // the plume picks from them at random — adding four more entries would
+    // change where the plume comes from as a side effect of adding streaks.
+    for (let i = 0; i < streakTips.length; i++) {
+      const [joint, dy] = streakTips[i];
+      runner.streakPoints[i].set(0, dy, 0).applyMatrix4(joint.matrixWorld);
     }
 
     material.uniforms.uDissolve.value = runner.dissolve;

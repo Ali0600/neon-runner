@@ -16,6 +16,7 @@ import { createParticleSystem } from './particles/ParticleSystem.js';
 import { createGpuEngine } from './particles/GpuEngine.js';
 import { createTrail } from './trail/Trail.js';
 import { createAfterimages } from './afterimages/Afterimages.js';
+import { createLimbStreaks } from './trail/LimbStreaks.js';
 import { createGame } from './game/Game.js';
 import { createPost } from './post.js';
 import { createGui } from './gui.js';
@@ -55,6 +56,9 @@ scene.add(trail.mesh);
 const afterimages = createAfterimages(params, runner);
 scene.add(afterimages.group);
 
+const limbStreaks = createLimbStreaks(params);
+for (const m of limbStreaks.meshes) scene.add(m);
+
 const game = createGame(params, particles);
 scene.add(game.mesh);
 
@@ -85,6 +89,7 @@ function applyParams() {
   gpuEngine.applyParams();
   trail.applyParams();
   afterimages.applyParams();
+  limbStreaks.applyParams();
   game.applyParams();
   post.applyParams();
   renderer.setPixelRatio(params.pixelRatio);
@@ -158,6 +163,7 @@ function frame(dt) {
     gpuEngine.clear();
     trail.clear();
     afterimages.clear();
+    limbStreaks.clear();
     game._prevValid = false;
   }
 
@@ -206,6 +212,9 @@ function frame(dt) {
   // Engine-agnostic: afterimages are the runner's own pose, not particles, so
   // they sit outside the engine branch above.
   afterimages.update(simTime, runner);
+  // Not inside the engine branch either: unlike the chest ribbon, these do not
+  // feed the GPGPU vortex — they are decoration, not a force source.
+  limbStreaks.update(simTime, runner);
 
   readouts.update(params, simTime, runner, particles, gpuEngine, renderer);
 
@@ -234,6 +243,7 @@ window.__app = {
   gpuEngine,
   trail,
   afterimages,
+  limbStreaks,
   game,
   rig,
   input,

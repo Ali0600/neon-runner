@@ -43,7 +43,9 @@ Two things worth knowing, because neither is obvious from the panel:
   same noise grain as the runner and cool from cyan to magenta as they age.
   Selecting `afterimages` stops the plume at its source rather than hiding it,
   so live particles age out naturally and the readouts keep telling the truth;
-  the takeoff, landing and pickup bursts stay in every mode.
+  the takeoff, landing and pickup bursts stay in every mode. Four extra light
+  ribbons trail from the hands and feet, tracing the real arcs the limbs swing
+  through — the same ribbon the chest trail uses, fed from the limb tips.
 - **Jump, and the neon wall-run.** Tap Space to jump; hold it while running at a
   building and the runner goes **straight up the wall** at 20 u/s — faster than
   its own sprint — crests over the lip and lands on the roof, where it can keep

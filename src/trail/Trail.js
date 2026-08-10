@@ -6,8 +6,29 @@ const MAX_SAMPLES = 240;
 const MIN_STEP = 0.09; // world units between samples
 
 const _tangent = new THREE.Vector3();
+const _point = new THREE.Vector3();
 
-export function createTrail(params) {
+/**
+ * @param opts  optional hooks, each defaulting to the chest ribbon's behaviour:
+ *   getPoint(runner, out)  where this ribbon samples from
+ *   getWidth()             ribbon width
+ *   shouldEmit(runner)     whether to add samples this frame
+ *   getVisible()           mesh visibility
+ * The limb streaks are the same ribbon fed from a different joint; nothing about
+ * the geometry, the billboarding or the freeze-safety differs between them.
+ */
+export function createTrail(params, opts = {}) {
+  const getPoint =
+    opts.getPoint ??
+    ((runner, out) => {
+      // Chest height, so the core reads as coming off the body rather than
+      // dragging along the floor.
+      out.set(runner.position.x, runner.position.y + 1.0, runner.position.z);
+    });
+  const getWidth = opts.getWidth ?? (() => params.trailWidth);
+  const shouldEmit = opts.shouldEmit ?? ((runner) => runner.dissolve > 0.02);
+  const getVisible = opts.getVisible ?? (() => params.trailEnabled !== false);
+
   // Samples are kept oldest-first in a plain array; the geometry is small
   // enough (<= 480 verts) that a full re-upload each frame is cheaper than
   // ring-buffer bookkeeping.
@@ -53,16 +74,17 @@ export function createTrail(params) {
 
   trail.update = function update(simTime, runner) {
     const maxSamples = Math.max(2, Math.min(MAX_SAMPLES, Math.floor(params.trailSamples)));
-    const p = runner.position;
+    getPoint(runner, _point);
+    const p = _point;
 
     const last = samples[samples.length - 1];
     const moved =
       !last ||
-      (p.x - last.x) ** 2 + (p.z - last.z) ** 2 + (p.y + 1.0 - last.y) ** 2 > MIN_STEP * MIN_STEP;
+      (p.x - last.x) ** 2 + (p.y - last.y) ** 2 + (p.z - last.z) ** 2 > MIN_STEP * MIN_STEP;
 
     // Emit only while the runner is glowing; below that the ribbon just ages out.
-    if (moved && runner.dissolve > 0.02) {
-      samples.push({ x: p.x, y: p.y + 1.0, z: p.z, t: simTime, s: runner.dissolve });
+    if (moved && shouldEmit(runner)) {
+      samples.push({ x: p.x, y: p.y, z: p.z, t: simTime, s: runner.dissolve });
     }
 
     // Drop samples that have aged past the fade window, then enforce the cap.
@@ -123,8 +145,8 @@ export function createTrail(params) {
   };
 
   trail.applyParams = () => {
-    mesh.visible = params.trailEnabled !== false;
-    material.uniforms.uWidth.value = params.trailWidth;
+    mesh.visible = getVisible();
+    material.uniforms.uWidth.value = getWidth();
     material.uniforms.uColorA.value.set(params.colorA);
     material.uniforms.uColorB.value.set(params.colorB);
   };
