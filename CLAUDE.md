@@ -28,9 +28,18 @@ pass for a mid-air case it never ran.
 
 The follow rig eases on real time and only snaps below its epsilon, so a paused frame is
 not stable immediately: `rig.yaw` decays at 2.6/s and needs ~200 frames. Settle by
-stepping until the rig's own state stops changing (bounded, and fail if it never does),
-not by picking a frame count — and do it before hashing, or the gate reports a
-regression that is only the camera still moving.
+stepping until the camera stops changing (bounded, and fail if it never does), not by
+picking a frame count — and do it before hashing, or the gate reports a regression that
+is only the camera still moving.
+
+**Settle on the full camera matrices — `matrixWorld` AND `projectionMatrix` — not on
+`rig.yaw`/position.** The FOV punch (`camera.fov = 62 + dissolve * 14`, `camera.js`) eases
+on real time and converges ~100 frames *after* the rig's yaw does, so a settle keyed on
+the rig alone exits early and the next two frames differ by a hair of projection. That
+reports as "mid-fall and on-a-roof break the freeze invariant", with the feature under
+test looking guilty; it reproduces just as well with the feature off, which is the tell.
+The fov ease does have an epsilon snap and does arrive — the instrument was what needed
+fixing.
 
 It holds because everything simulation-side reads the **sim clock** (`simDt`), never real
 time. Only the follow camera rig reads real time, so a paused scene can still be orbited.
@@ -45,6 +54,19 @@ The preview tab is hidden, so `requestAnimationFrame` never fires. **Drive frame
 `__app.step(count, dt)`**, not by waiting. `window.__app` exposes `renderer`, `scene`,
 `params`, `runner`, `particles`, `gpuEngine`, `trail`, `game`, `scope`, `applyParams`
 and `buildSha`.
+
+**Stop the animation loop before hashing** — `renderer.setAnimationLoop(null)`. If a rAF
+frame lands between `step()` and `toDataURL()` the capture describes a different frame
+than the one you set up, and the results are inconsistent run to run rather than wrong in
+a way you would notice. Hashing the same frame twice with no step in between is the check
+that separates an unreliable capture from a genuinely moving scene.
+
+**Size the viewport explicitly before measuring anything** (`resize_window`), and reload
+after. A pane that resizes under a live page leaves the `EffectComposer` sized to the old
+viewport, and it then renders into a bottom-left sub-rectangle of the canvas — which reads
+exactly like "most of the scene stopped drawing". `gl.readPixels` on the default
+framebuffer is also not trustworthy here (no `preserveDrawingBuffer`); prefer `toDataURL`
+immediately after a synchronous render, or a screenshot.
 
 **A frame-hash harness must prove the canvas is real before reporting anything.** On a
 0×0 canvas `toDataURL()` returns the six-character string `"data:,"`, every hash compares

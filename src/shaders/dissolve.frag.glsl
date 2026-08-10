@@ -6,38 +6,18 @@ uniform vec3 uColorB;
 varying vec3 vLocal;
 varying vec3 vNormal;
 
-// Cheap hash-based 3D value noise — no texture lookup, good enough for an
-// erosion threshold where only the shape's raggedness matters.
-float hash(vec3 p) {
-  p = fract(p * 0.3183099 + vec3(0.71, 0.113, 0.419));
-  p *= 17.0;
-  return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
-}
-
-float valueNoise(vec3 p) {
-  vec3 i = floor(p);
-  vec3 f = fract(p);
-  f = f * f * (3.0 - 2.0 * f);
-  return mix(
-    mix(mix(hash(i + vec3(0, 0, 0)), hash(i + vec3(1, 0, 0)), f.x),
-        mix(hash(i + vec3(0, 1, 0)), hash(i + vec3(1, 1, 0)), f.x), f.y),
-    mix(mix(hash(i + vec3(0, 0, 1)), hash(i + vec3(1, 0, 1)), f.x),
-        mix(hash(i + vec3(0, 1, 1)), hash(i + vec3(1, 1, 1)), f.x), f.y),
-    f.z);
-}
+// hash / valueNoise / dissolveNoise / dissolveHeightBias come from
+// chunks/dissolveNoise.glsl, prepended in runner.js.
 
 void main() {
-  // Two octaves, slowly drifting so the erosion edge crawls instead of sitting still.
-  float n = valueNoise(vLocal * 3.2 + vec3(0.0, uTime * 0.35, 0.0)) * 0.65
-          + valueNoise(vLocal * 8.0 - vec3(uTime * 0.5, 0.0, 0.0)) * 0.35;
+  float n = dissolveNoise(vLocal, uTime);
 
-  // Bias erosion from the feet upward so the body reads as lifting off into
-  // light. vLocal.y is measured from the ground, so the figure spans 0..~1.8.
-  float heightBias = smoothstep(0.0, 1.8, vLocal.y) * 0.5;
   // Deliberately short of full erosion. Eroding the whole body at top speed
   // leaves a few bright fragments that bloom smears into an anonymous blob;
   // keeping the torso and head means the runner still reads as a figure.
-  float threshold = (n + heightBias) - uDissolve * 0.62;
+  // Afterimages need to pass this point, which is why they carry their own
+  // erosion uniform rather than a pushed-up uDissolve — see D36.
+  float threshold = (n + dissolveHeightBias(vLocal.y)) - uDissolve * 0.62;
 
   if (threshold < 0.0) discard;
 

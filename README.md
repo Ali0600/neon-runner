@@ -34,6 +34,16 @@ Two things worth knowing, because neither is obvious from the panel:
 
 ## Features
 
+- **Two sprint looks, switchable live.** The `SPRINT FX` dropdown at the top of
+  the panel picks between the continuous **plume**, inFamous-style
+  **afterimages**, or **both**. Afterimages leave a chain of the runner's own
+  pose behind it — each one a real snapshot of the figure at that instant, the
+  ten body matrices copied straight off the live body, so the lean, the bob and
+  the wall-climb orientation all come along for free. They dissolve with the
+  same noise grain as the runner and cool from cyan to magenta as they age.
+  Selecting `afterimages` stops the plume at its source rather than hiding it,
+  so live particles age out naturally and the readouts keep telling the truth;
+  the takeoff, landing and pickup bursts stay in every mode.
 - **Jump, and the neon wall-run.** Tap Space to jump; hold it while running at a
   building and the runner goes **straight up the wall** at 20 u/s — faster than
   its own sprint — crests over the lip and lands on the roof, where it can keep
