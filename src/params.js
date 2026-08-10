@@ -68,6 +68,24 @@ export const params = {
   // Negative seconds into the past. Analytic engine only — see D26.
   scopeScrub: 0,
 
+  // --- sprint FX ---
+  // What a sprint looks like: the continuous particle plume, inFamous-style
+  // afterimages peeling off the body, or both. Engine-owned so the choice
+  // survives a style switch — it is a different effect, not a different palette.
+  sprintFx: 'plume', // 'plume' | 'afterimages' | 'both'
+  ghostCount: 10, // ring size, hard-capped by MAX_GHOSTS
+  ghostSpacing: 1.8, // world units between snapshots
+  ghostFade: 0.9, // seconds from capture to fully dissolved
+  ghostIntensity: 0.7, // emissive gain, before the count normalization
+  // Higher than the trail's 0.02 on purpose: afterimages belong to the sprint,
+  // and ghosts emitted at a walk just crowd the runner.
+  ghostMinDissolve: 0.35,
+  // The chain is only continuous while the oldest ghost expires before the ring
+  // overwrites it: ghostFade <= ghostSpacing * ghostCount / SPRINT_SPEED
+  // (0.9 <= 1.06 here). Past that the tail pops out early rather than fading.
+  limbStreaks: true,
+  limbStreakWidth: 0.45, // multiplier on trailWidth
+
   // --- sim ---
   timeScale: 1.0,
 

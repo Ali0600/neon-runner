@@ -14,6 +14,14 @@ const ENGINE_KEYS = [
   'style',
   'holdSpeed',
   'holdSpeedValue',
+  'sprintFx',
+  'ghostCount',
+  'ghostSpacing',
+  'ghostFade',
+  'ghostIntensity',
+  'ghostMinDissolve',
+  'limbStreaks',
+  'limbStreakWidth',
 ];
 
 describe('style presets', () => {
@@ -60,6 +68,14 @@ describe('applyStylePreset', () => {
       style: 'neon',
       holdSpeed: true,
       holdSpeedValue: 26,
+      sprintFx: 'both',
+      ghostCount: 14,
+      ghostSpacing: 2.4,
+      ghostFade: 1.3,
+      ghostIntensity: 1.1,
+      ghostMinDissolve: 0.5,
+      limbStreaks: false,
+      limbStreakWidth: 0.8,
     };
     // One fixture, asserted against itself after the switch: adding an engine
     // key needs a single edit rather than two literals kept in sync.
@@ -83,6 +99,14 @@ describe('applyStylePreset', () => {
       style: 'neon',
       holdSpeed: true,
       holdSpeedValue: 26,
+      sprintFx: 'both',
+      ghostCount: 14,
+      ghostSpacing: 2.4,
+      ghostFade: 1.3,
+      ghostIntensity: 1.1,
+      ghostMinDissolve: 0.5,
+      limbStreaks: false,
+      limbStreakWidth: 0.8,
     };
     for (const key of ENGINE_KEYS) {
       expect(params[key], `${key} missing from the fixture`).toBeDefined();

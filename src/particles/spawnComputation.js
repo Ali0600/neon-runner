@@ -5,6 +5,8 @@
 // particle starts, or switching engines would change the look — so the
 // computation lives here once rather than in each engine.
 
+import { plumeEnabled } from '../afterimages/logic.js';
+
 const INHERIT = 0.32; // fraction of runner velocity a particle keeps
 
 /**
@@ -30,6 +32,13 @@ export function takeSpawnCount(state, rate, simDt, cap) {
  * standing runner emits nothing.
  */
 export function emissionRate(params, runner) {
+  // The afterimages-only mode stops the plume at the source rather than hiding
+  // the meshes: already-live particles then age out naturally instead of
+  // vanishing mid-air, and the SCOPE readouts keep reporting what is really
+  // there. One-off bursts (takeoff, landing, pickups) are event feedback rather
+  // than plume, and deliberately survive the gate.
+  if (!plumeEnabled(params.sprintFx)) return 0;
+
   const moveGate = Math.min(1, runner.speed / 1.6);
   return (
     (params.walkRate + (params.sprintRate - params.walkRate) * Math.pow(runner.dissolve, 1.4)) *
