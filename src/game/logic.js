@@ -98,10 +98,20 @@ export function segmentDistanceSq(ax, az, bx, bz, px, pz) {
 /**
  * Indices of pickups collected by a runner moving from `prev` to `cur`.
  * Only entries with `active !== false` are eligible.
+ *
+ * The sweep is in XZ, so `maxHeight` bounds how far above a ring the runner may
+ * be and still take it. Without that bound a runner twenty units up a wall
+ * collects every ring its SHADOW crosses — the sweep cannot tell the difference,
+ * because it never sees y at all. Defaults to Infinity so a caller that has no
+ * vertical axis behaves exactly as before.
  */
-export function sweptCollect(prev, cur, pickups, radius) {
+export function sweptCollect(prev, cur, pickups, radius, maxHeight = Infinity) {
   const hits = [];
   const rSq = radius * radius;
+  // Height is judged at the closer of the two endpoints: a jump that passes over
+  // a ring should not collect it, but a landing that ends on one should.
+  const dy = Math.min(Math.abs(prev.y ?? 0), Math.abs(cur.y ?? 0));
+  if (dy > maxHeight) return hits;
   for (let i = 0; i < pickups.length; i++) {
     const p = pickups[i];
     if (p.active === false) continue;

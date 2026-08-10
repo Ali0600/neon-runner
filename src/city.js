@@ -176,6 +176,20 @@ export function viewClearance(city, ax, ay, az, bx, by, bz, radius) {
     const o = [ax, ay, az];
     const d = [dx, dy, dz];
 
+    // If the anchor is already inside this box's padded volume, the box cannot
+    // meaningfully occlude the view of it — and the slab test would return
+    // tMin = 0 and collapse the camera onto the runner. That is not a corner
+    // case: the runner stands BODY_RADIUS from a face and climbs at that
+    // distance, which is inside a box grown by the larger camera radius, so it
+    // happens for the whole of every wall-run.
+    if (
+      o[0] >= lo[0] && o[0] <= hi[0] &&
+      o[1] >= lo[1] && o[1] <= hi[1] &&
+      o[2] >= lo[2] && o[2] <= hi[2]
+    ) {
+      continue;
+    }
+
     let tMin = 0;
     let tMax = best;
     let miss = false;

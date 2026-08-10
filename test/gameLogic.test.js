@@ -72,6 +72,40 @@ describe('segmentDistanceSq', () => {
   });
 });
 
+describe('sweptCollect — vertical reach', () => {
+  // A pair: the sweep is XZ-only and cannot see height at all, so without a
+  // bound a runner partway up a wall collects every ring its shadow crosses.
+  // Both halves matter — a bound that also blocked the ground case would make
+  // the whole scoring loop unreachable.
+  const pickups = () => [{ x: 5, z: 0 }];
+
+  it('collects when the runner is at ring height', () => {
+    const hits = sweptCollect({ x: 0, y: 0, z: 0 }, { x: 10, y: 0, z: 0 }, pickups(), 1, 2.6);
+    expect(hits).toEqual([0]);
+  });
+
+  it('does NOT collect from twenty units up the wall above it', () => {
+    const hits = sweptCollect({ x: 0, y: 20, z: 0 }, { x: 10, y: 20, z: 0 }, pickups(), 1, 2.6);
+    expect(hits).toEqual([]);
+  });
+
+  it('still collects mid-jump, within reach', () => {
+    const hits = sweptCollect({ x: 0, y: 1.4, z: 0 }, { x: 10, y: 2.2, z: 0 }, pickups(), 1, 2.6);
+    expect(hits).toEqual([0]);
+  });
+
+  it('judges height at the closer endpoint, so a landing still counts', () => {
+    // Descending onto a ring: one endpoint is far above it, the other is on it.
+    const hits = sweptCollect({ x: 0, y: 9, z: 0 }, { x: 10, y: 0.1, z: 0 }, pickups(), 1, 2.6);
+    expect(hits).toEqual([0]);
+  });
+
+  it('defaults to unbounded, so a caller with no vertical axis is unchanged', () => {
+    const hits = sweptCollect({ x: 0, y: 50, z: 0 }, { x: 10, y: 50, z: 0 }, pickups(), 1);
+    expect(hits).toEqual([0]);
+  });
+});
+
 describe('sweptCollect', () => {
   it('collects a pickup sitting at the destination', () => {
     const pickups = [{ x: 5, z: 0 }];

@@ -3,9 +3,10 @@ import dissolveVert from './shaders/dissolve.vert.glsl?raw';
 import dissolveFrag from './shaders/dissolve.frag.glsl?raw';
 import { wrapLane, resolvePathMode } from './scope/lane.js';
 import { buildSchedule, sampleSchedule, driveCommand } from './scope/schedule.js';
-import { WALK_SPEED, SPRINT_SPEED } from './constants.js';
+import { WALK_SPEED, SPRINT_SPEED, WALL_REACH, CREST_INSET } from './constants.js';
 import { resolveTargetSpeed } from './speed.js';
-import { slideXZ } from './city.js';
+import { slideXZ, nearestFace, groundHeightAt } from './city.js';
+import { stepVertical, initialVertical } from './vertical.js';
 
 const ACCEL = 9.0; // response rate toward target velocity
 const BOUND = 180; // keep the runner inside the ground plane
@@ -131,6 +132,13 @@ export function createRunner(params, city = []) {
     position: group.position,
     velocity: new THREE.Vector3(),
     speed: 0,
+    // Horizontal speed, kept separate because `speed` is 3D. Steering, the
+    // wall-mount gate and the gait all mean the horizontal one; reading the 3D
+    // magnitude for those makes a vertical climb look like fast lateral motion.
+    groundSpeed: 0,
+    vertical: initialVertical(),
+    verticalEvent: null,
+    wallNormal: null,
     dissolve: 0,
     yaw: 0,
     phase: 0,
@@ -233,11 +241,23 @@ export function createRunner(params, city = []) {
       })
     );
 
-    // Framerate-independent exponential approach to the target velocity.
+    // Framerate-independent exponential approach to the target velocity. The
+    // y component is overwritten below from the vertical state machine: a jump
+    // is an impulse, and running it through an ACCEL = 9 ease would damp it
+    // away over its own airtime.
     runner.velocity.lerp(_target, 1 - Math.exp(-ACCEL * simDt));
-    if (runner.velocity.lengthSq() < 1e-4) runner.velocity.set(0, 0, 0);
 
-    group.position.addScaledVector(runner.velocity, simDt);
+    // Snap the HORIZONTAL components only. Exponential easing never arrives, so
+    // without a snap the runner creeps forever and a paused frame never
+    // settles — but testing the 3D magnitude would read a fall as motion and
+    // never snap at all while airborne.
+    if (runner.velocity.x ** 2 + runner.velocity.z ** 2 < 1e-4) {
+      runner.velocity.x = 0;
+      runner.velocity.z = 0;
+    }
+
+    group.position.x += runner.velocity.x * simDt;
+    group.position.z += runner.velocity.z * simDt;
     if (mode === 'scope') {
       // The lane is long enough that hitting its end is rare, but it must wrap
       // rather than clamp — a clamped runner would sit still while the emitter
@@ -249,19 +269,80 @@ export function createRunner(params, city = []) {
       group.position.x = THREE.MathUtils.clamp(group.position.x, -BOUND, BOUND);
     }
     group.position.z = THREE.MathUtils.clamp(group.position.z, -BOUND, BOUND);
-    group.position.y = 0;
 
-    // Buildings are solid. Skipped in scope, whose lane runs out to x = +-2000
-    // across ground the city does not cover and which declutters it anyway.
-    if (mode !== 'scope') {
+    // --- vertical -------------------------------------------------------
+    // The scope lane runs out to x = +-2000 over ground the city does not
+    // cover, so there is nothing to stand on or climb there; a manual jump
+    // still works, against the ground plane.
+    const inScope = mode === 'scope';
+    const groundSpeed = Math.hypot(runner.velocity.x, runner.velocity.z);
+
+    // While climbing, probe just below the roofline the mount recorded. Above
+    // a building's own height its faces stop being climbable, so probing at the
+    // live y would report "no wall" one frame before the summit.
+    const probeY =
+      runner.vertical.mode === 'wall'
+        ? Math.min(group.position.y, runner.vertical.wallTop - 0.05)
+        : group.position.y;
+
+    const face = inScope
+      ? null
+      : nearestFace(city, group.position.x, group.position.z, probeY, WALL_REACH);
+    const supportY = inScope ? 0 : groundHeightAt(city, group.position.x, group.position.z);
+    if (face) runner.wallNormal = face;
+
+    const v = stepVertical(runner.vertical, {
+      simDt,
+      jumpHeld: !!input.jump,
+      jumpPressed: !!input.jumpPressed,
+      supportY,
+      wallTop: face ? face.top : null,
+      groundSpeed,
+    });
+    runner.vertical = v;
+    runner.verticalEvent = v.event;
+    group.position.y = v.y;
+    runner.velocity.y = v.vy;
+
+    if (v.mode === 'wall') {
+      // Pin to the face. Steering while attached slides the runner along the
+      // wall and off its edge partway up, which reads as the climb failing.
+      runner.velocity.x = 0;
+      runner.velocity.z = 0;
+    }
+
+    if (v.event === 'crest' && runner.wallNormal) {
+      // Step over the lip. The climb runs at BODY_RADIUS OUTSIDE the face, so
+      // without this the runner tops out still beyond the footprint, finds no
+      // roof beneath it, and drops straight back down the building it climbed.
+      group.position.x -= runner.wallNormal.nx * (BODY_RADIUS + CREST_INSET);
+      group.position.z -= runner.wallNormal.nz * (BODY_RADIUS + CREST_INSET);
+    }
+
+    // Buildings are solid — but only below their roofline, which is what lets
+    // the runner stand on one rather than being ejected off it.
+    if (!inScope) {
       const hit = slideXZ(city, group.position.x, group.position.z, group.position.y, BODY_RADIUS);
       group.position.x = hit.x;
       group.position.z = hit.z;
     }
 
     runner.speed = runner.velocity.length();
+    runner.groundSpeed = Math.hypot(runner.velocity.x, runner.velocity.z);
 
-    if (runner.speed > 0.2) {
+    if (v.mode === 'wall' && runner.wallNormal) {
+      // Face the wall. Deriving heading from velocity here would run
+      // atan2(x, z) on two components that are both zero during a vertical
+      // climb, and the figure would spin on the spot.
+      const wanted = Math.atan2(-runner.wallNormal.nx, -runner.wallNormal.nz);
+      let delta = wanted - runner.yaw;
+      delta = Math.atan2(Math.sin(delta), Math.cos(delta));
+      if (Math.abs(delta) < 1e-5) runner.yaw = wanted;
+      else runner.yaw += delta * (1 - Math.exp(-10 * simDt));
+      group.rotation.y = runner.yaw;
+    } else if (runner.groundSpeed > 0.2) {
+      // Gated on HORIZONTAL speed: `runner.speed` is 3D, so a near-vertical
+      // climb or a fast fall passes the old gate while carrying no heading.
       const wanted = Math.atan2(runner.velocity.x, runner.velocity.z);
       // Shortest-arc yaw: a naive lerp spins the long way round through +-PI.
       let delta = wanted - runner.yaw;
@@ -283,7 +364,12 @@ export function createRunner(params, city = []) {
     // ground speed instead of sliding at one speed and mincing at another.
     runner.phase += (runner.speed * simDt * Math.PI) / STRIDE;
     const p = runner.phase;
-    const gait = Math.min(1, runner.speed / WALK_SPEED); // no flailing at a standstill
+    // Legs keep cycling on a wall — the figure IS running, just vertically. In
+    // free air they tuck: a full sprint cycle mid-arc reads as running on
+    // nothing, which is the one place the distance-driven gait has no ground to
+    // match.
+    const gait =
+      Math.min(1, runner.speed / WALK_SPEED) * (runner.vertical.mode === 'air' ? 0.3 : 1);
     const amp = (0.55 + runner.dissolve * 0.5) * gait;
 
     legL.hip.rotation.x = Math.sin(p) * amp;
@@ -309,7 +395,13 @@ export function createRunner(params, city = []) {
     material.uniforms.uDissolve.value = runner.dissolve;
     material.uniforms.uTime.value = simTime;
     material.uniforms.uOrigin.value.copy(group.position);
-    halo.material.uniforms.uOpacity.value = 0.07 + runner.dissolve * 0.16;
+    // The ground glow belongs to the SURFACE, not to the figure. As a child of
+    // the group it would otherwise ride up the wall with the runner, a bright
+    // disc hanging in mid-air twenty units off the ground.
+    const aboveSurface = v.y - supportY;
+    halo.position.y = 0.02 - aboveSurface;
+    halo.material.uniforms.uOpacity.value =
+      (0.07 + runner.dissolve * 0.16) * Math.max(0, 1 - aboveSurface / 6);
     halo.scale.setScalar(0.7 + runner.dissolve * 0.45);
   };
 

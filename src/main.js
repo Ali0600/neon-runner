@@ -121,6 +121,7 @@ window.addEventListener('resize', onResize);
 // because particle motion is a closed-form function of sim time.
 const timer = new THREE.Timer();
 let simTime = 0;
+const _vertBurst = new THREE.Vector3();
 
 // Composer runs several passes per frame; without this, info.render reports
 // only the last one and always reads as a single draw call.
@@ -143,6 +144,24 @@ function frame(dt) {
     gpuEngine.clear();
     trail.clear();
     game._prevValid = false;
+  }
+
+  // Vertical transitions get their own burst, through the same ring-buffer path
+  // as a pickup collection. Before the emitter below, so a burst ships in the
+  // same buffer upload as this frame's continuous emission.
+  // Analytic only, like every other burst: the GPGPU engine has no injection
+  // path for one-off emissions.
+  if (runner.verticalEvent === 'takeoff' || runner.verticalEvent === 'land') {
+    const landing = runner.verticalEvent === 'land';
+    _vertBurst.set(runner.position.x, runner.position.y + 0.14, runner.position.z);
+    particles.emitBurst(_vertBurst, landing ? 260 : 120, {
+      simTime,
+      // Landing splashes outward and slightly up; takeoff kicks down, so the
+      // light reads as being pushed against rather than as a second jet.
+      speed: landing ? 8.5 : 5.5,
+      lifetime: params.lifetime * (landing ? 1.1 : 0.8),
+      up: landing ? 0.35 : -2.6,
+    });
   }
 
   if (params.scope) scopeCam.update(runner, params);

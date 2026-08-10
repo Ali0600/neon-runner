@@ -205,6 +205,25 @@ describe('viewClearance', () => {
   it('is empty-safe', () => {
     expect(viewClearance([], 0, 1, 0, 0, 1, 10, 0.5)).toBe(1);
   });
+
+  it('ignores the building the anchor is pressed against', () => {
+    // A runner stands, and climbs, at BODY_RADIUS from a face — closer than the
+    // camera radius the box is padded by. Treating that padding as an
+    // obstruction puts the ray origin inside the box, returns 0, and collapses
+    // the camera onto the runner for the whole of every wall-run.
+    // BOX spans z = -3..3; anchor at 3.2 is outside it but inside a 0.6 pad.
+    expect(viewClearance(BOX, 0, 5, 3.2, 0, 5, 14, 0.6)).toBe(1);
+  });
+
+  it('still blocks a building the anchor is merely near', () => {
+    // The other half: skipping must apply only to the box actually touched, not
+    // to a second building further along the same sightline.
+    const two = [
+      { x: 0, z: 0, hw: 2, hd: 3, h: 10 },
+      { x: 0, z: 20, hw: 2, hd: 3, h: 10 },
+    ];
+    expect(viewClearance(two, 0, 5, 3.2, 0, 5, 30, 0.6)).toBeLessThan(1);
+  });
 });
 
 describe('slideXZ', () => {

@@ -19,6 +19,8 @@ Then open http://localhost:5173. The panel on the right retunes everything live.
 | --- | --- |
 | **WASD** | move |
 | **hold Shift** | sprint — the runner dissolves and emission spikes |
+| **Space** | jump |
+| **hold Space** at a wall, while running | run straight up the building, crest onto the roof |
 | **drag** | orbit the camera (follow view only; SCOPE is locked side-on) |
 | **T** | fire one SCOPE event immediately, to watch a single transient |
 | **.** | step one frame while paused |
@@ -32,6 +34,16 @@ Two things worth knowing, because neither is obvious from the panel:
 
 ## Features
 
+- **Jump, and the neon wall-run.** Tap Space to jump; hold it while running at a
+  building and the runner goes **straight up the wall** at 20 u/s — faster than
+  its own sprint — crests over the lip and lands on the roof, where it can keep
+  running until it steps off an edge. Modelled on *Second Son*'s Light Speed,
+  which turns vertical without slowing down. The whole vertical axis is a
+  three-state machine in a dependency-free module, so every transition is unit
+  tested, and it advances only on the sim clock — at `timeScale = 0` a runner
+  frozen mid-climb, mid-fall or on a roof renders bit-identical frames. Takeoff
+  kicks a burst downward, landing splashes one outward, and while climbing the
+  rise bias inverts so the plume trails **down** the wall behind you.
 - **A solid city.** 70 instanced buildings — 8 towers inside the play field and
   a 62-building skyline beyond — laid out from a seeded PRNG so the world is
   identical every load, and rendered in one draw call as dark slabs with lit
@@ -123,6 +135,7 @@ while the analytic engine pays only for what is alive.
 | `src/shaders/chunks/particleCommon.glsl` | Billboard and sizing maths shared by both engines' vertex shaders |
 | `src/runner.js` | Kinematics, joint hierarchy, run cycle, dissolve material |
 | `src/city.js` | Pure: building layout, ground height, wall faces, collision, camera sightlines |
+| `src/vertical.js` | Pure: the ground / air / wall state machine — gravity, jump, climb, crest |
 | `src/speed.js`, `src/constants.js` | Pure speed-precedence resolution; shared motion constants |
 | `src/trail/Trail.js` | Position sampling and ribbon rebuild |
 | `src/camera.js` | Third-person follow rig with epsilon-snapped easing |
@@ -142,8 +155,18 @@ trying; `docs/learnings.md` covers the transferable concepts.
 npm test
 ```
 
-137 tests over the pure modules:
+173 tests over the pure modules:
 
+- **the vertical state machine** — every transition between ground, air and
+  wall; a jump that returns to exactly its launch height; an apex that matches
+  the constants minus one step of Euler error; `crest` and `land` each firing
+  exactly once; a runner that does *not* grab a wall it is falling past with the
+  key released; and `simDt = 0` as a fixed point in all three modes, which pins
+  the freeze invariant at the unit level rather than only in the browser.
+
+- **collection reach** — a runner at ring height collects; the same runner
+  twenty units up the wall above it does not, since the sweep is XZ-only and
+  cannot see height at all.
 - **city layout and queries** — a deterministic world for a seed (and a
   *different* one for a different seed, so the determinism test cannot pass
   vacuously), every pickup and the whole autopilot lane left clear, no two
