@@ -151,6 +151,7 @@ while the analytic engine pays only for what is alive.
 | `src/styles.js` | Plain-data style presets and the switch that applies them |
 | `src/shaders/*.glsl` | Particle, trail and dissolve shaders |
 | `src/post.js`, `src/gui.js`, `src/scene.js`, `src/input.js` | Bloom chain, panel, world, keyboard |
+| `scripts/sabotage.mjs` | Mutation harness: breaks the code on purpose and checks the suite notices |
 
 `docs/DECISIONS.md` records the design forks and the alternatives still worth
 trying; `docs/learnings.md` covers the transferable concepts.
@@ -204,6 +205,29 @@ Every suite is verified fail-first: disabling the wraparound branch turns the
 range tests red, deleting one key from a preset turns the style tests red, and
 the collection tests were written against a point-distance implementation and
 watched to fail on the tunnelling case before the swept version was written.
+
+### Proving the tests bite
+
+```bash
+npm run sabotage
+```
+
+A test that has never failed proves nothing, so this checks mechanically. It
+reintroduces 23 specific defects one at a time — drop a roofline gate, report a
+climbing runner's velocity as zero, let a scope segment command a discontinuous
+speed — runs the whole suite for each, and asserts that the particular test
+written to guard that defect is the one that goes red. Takes about 20 seconds;
+`--only <substring>` narrows it while iterating.
+
+Four outcomes are failures rather than skips, because each of them is a way a
+green result can be a lie: the sabotage never applied, it applied but changed
+nothing, the suite stayed green, or the suite ran a *different number* of tests —
+the signature of a sabotage that broke an import, so the file's tests silently
+never ran and the remaining ones passed.
+
+The file under test routinely holds uncommitted work, so its bytes are
+snapshotted in memory and restored from that, never with `git checkout`, and the
+restore is verified by checksum and repeated from signal handlers.
 
 ## CI/CD
 

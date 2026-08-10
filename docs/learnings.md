@@ -348,3 +348,20 @@ frames before capturing fixed it.
 the measurement. Render a few frames before capturing, and confirm a suspicious
 frame with `readPixels` at a projected world point before debugging what you
 think you see.
+
+## A synchronous loop cannot handle Ctrl-C
+
+Node runs signal handlers as JavaScript callbacks, which need a turn of the event
+loop. A program whose main loop is entirely synchronous — a `for` over blocking
+`execFileSync` calls, say — never yields, so `process.on('SIGINT', …)` does not
+run until the work is already finished.
+
+**Why it came up:** the mutation harness edits a source file, runs the suite,
+then restores it. Its signal handlers existed to guarantee a Ctrl-C could not
+leave sabotaged code on disk. Killing it mid-case proved they never fired: the
+child ran all 23 cases and exited 0. Making the loop async (`spawn` + `await`)
+fixed it — exit 130, handler message printed, file byte-identical.
+
+**Takeaway:** if a program must clean up on a signal, its main loop has to be
+async. And test that by actually killing it: this is a guard whose passing case
+looks identical whether it works or is absent entirely.

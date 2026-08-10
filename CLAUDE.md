@@ -10,6 +10,7 @@ imported with `?raw`.
 npm run dev      # http://localhost:5173
 npm test         # vitest, 179 tests
 npm run build    # production build
+npm run sabotage # mutation harness — proves the tests bite (~20s)
 ```
 
 ## The freeze invariant — a hard gate
@@ -87,6 +88,26 @@ Ship with the change, in the same PR, **proven fail-first**: make it fail agains
 behaviour before trusting it. When sabotaging a file to prove a test bites, checksum it
 before and after so the restore is provably clean, and never use `git checkout` to undo a
 sabotage on uncommitted work.
+
+`npm run sabotage` (`scripts/sabotage.mjs`) does that mechanically: 23 cases, each
+reintroducing one defect and asserting the specific test written to guard it goes red.
+**Add a case whenever you add a guard**, and run it before opening a PR — it is not in CI
+because it runs the suite once per case.
+
+```
+npm run sabotage -- --list          # names only
+npm run sabotage -- --only wall     # substring filter, for iterating
+```
+
+Four verdicts are failures, not skips: `PATTERN-NOT-FOUND` (its literal source patterns
+rot — a rename or a reflow breaks them, so re-run it after touching a targeted file and
+after the formatter), `SABOTAGE-NO-OP`, `NOT CAUGHT`, and `WRONG DENOMINATOR` (the
+signature of a sabotage that broke an import, so the file's tests never ran and the rest
+passed). `CAUGHT BY THE WRONG TEST` means another test masks the one you meant to prove.
+
+The run loop is **async on purpose**: node cannot run a signal handler until the event
+loop turns, so a synchronous loop of blocking test runs ignores Ctrl-C entirely and can
+leave sabotaged code on disk. Verified by killing it mid-case.
 
 ## Workflow
 
