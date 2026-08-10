@@ -15,6 +15,7 @@ import { createReadouts } from './scope/readouts.js';
 import { createParticleSystem } from './particles/ParticleSystem.js';
 import { createGpuEngine } from './particles/GpuEngine.js';
 import { createTrail } from './trail/Trail.js';
+import { createAfterimages } from './afterimages/Afterimages.js';
 import { createGame } from './game/Game.js';
 import { createPost } from './post.js';
 import { createGui } from './gui.js';
@@ -51,6 +52,9 @@ const trail = createTrail(params);
 trail.mesh.renderOrder = 1; // additive systems composite over the smoke layer
 scene.add(trail.mesh);
 
+const afterimages = createAfterimages(params, runner);
+scene.add(afterimages.group);
+
 const game = createGame(params, particles);
 scene.add(game.mesh);
 
@@ -80,6 +84,7 @@ function applyParams() {
   particles.smokeMesh.visible = !gpgpu && params.style === 'smoke';
   gpuEngine.applyParams();
   trail.applyParams();
+  afterimages.applyParams();
   game.applyParams();
   post.applyParams();
   renderer.setPixelRatio(params.pixelRatio);
@@ -152,6 +157,7 @@ function frame(dt) {
     particles.clear();
     gpuEngine.clear();
     trail.clear();
+    afterimages.clear();
     game._prevValid = false;
   }
 
@@ -197,6 +203,10 @@ function frame(dt) {
     trail.update(simTime, runner);
   }
 
+  // Engine-agnostic: afterimages are the runner's own pose, not particles, so
+  // they sit outside the engine branch above.
+  afterimages.update(simTime, runner);
+
   readouts.update(params, simTime, runner, particles, gpuEngine, renderer);
 
   renderer.info.reset();
@@ -223,6 +233,7 @@ window.__app = {
   particles,
   gpuEngine,
   trail,
+  afterimages,
   game,
   rig,
   input,

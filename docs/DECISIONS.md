@@ -12,6 +12,40 @@
 
 ---
 
+## D36 — An afterimage is a copy of the pose, not a re-derivation of it
+
+**Fork:** a ghost needs the runner's pose. The gait is 8 joint rotations plus a bob and a
+lean, all pure functions of `(phase, amp, gait)` — so either could work.
+
+- *Extract the gait into a pure module* (`gait.js`) and have both the live runner and each
+  ghost derive joint angles from it. Unit-testable, and the obvious "don't repeat
+  yourself" answer.
+- *Copy the ten `matrixWorld`s* off the live body at capture time into a per-ghost
+  `uniform mat4 uJoints[10]`.
+
+**Chosen:** the matrix copy. `runner.update` already calls `updateWorldMatrix` before
+anything else reads the runner, so the matrices are exact and free at the moment of
+capture. It is also *unconditionally* right: it picks up the lean, the bob, the air tuck
+and the wall-climb orientation without any of them being restated, whereas a second
+consumer of the gait maths is a second thing to keep in step — the failure this repo has
+hit before, where two paths answering the same question drift apart and only one has a
+test. A ghost's pose never changes after capture, so there is nothing for the pure version
+to buy back.
+
+The cost is that `runner.bodyMeshes` becomes an ordered public contract (it is the
+`aJoint` index), which is called out where it is defined.
+
+**Status of alternatives:** pure gait extraction — `deferred — worth trying` if a second
+consumer ever appears. *Revisit hook:* the gait block in `src/runner.js`, and
+`Afterimages.capture` is the only other reader of the pose.
+
+**Why ghosts carry their own erosion uniform.** The body's fragment shader caps erosion at
+`uDissolve * 0.62`, deliberately short of full — so a ghost driven by a pushed-up
+`uDissolve` could never reach nothing. `ghostErosion` instead lerps from that same cap at
+full strength to past the shader's `noise + heightBias` ceiling of 1.5 at zero, which
+makes "a fresh ghost matches the body it peeled off" and "an expired ghost leaves nothing"
+both exact, and independent of the dissolve it was captured at.
+
 ## D35 — Sprint FX is a mode, and turning the plume off means not spawning it
 
 **Fork:** the inFamous-style afterimage sprint is a *second* look, not a

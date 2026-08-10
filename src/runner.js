@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import dissolveVert from './shaders/dissolve.vert.glsl?raw';
 import dissolveFrag from './shaders/dissolve.frag.glsl?raw';
+import dissolveNoise from './shaders/chunks/dissolveNoise.glsl?raw';
 import { wrapLane, resolvePathMode } from './scope/lane.js';
 import { buildSchedule, sampleSchedule, driveCommand } from './scope/schedule.js';
 import {
@@ -43,7 +44,8 @@ export function createRunner(params, city = []) {
 
   const material = new THREE.ShaderMaterial({
     vertexShader: dissolveVert,
-    fragmentShader: dissolveFrag,
+    // Shared with the afterimages, which must erode with an identical grain.
+    fragmentShader: dissolveNoise + dissolveFrag,
     uniforms: {
       uDissolve: { value: 0 },
       uTime: { value: 0 },
@@ -77,7 +79,7 @@ export function createRunner(params, city = []) {
     elbow.add(lower);
     shoulder.add(elbow);
     body.add(shoulder);
-    return { shoulder, elbow };
+    return { shoulder, elbow, upper, lower };
   }
 
   function makeLeg(side) {
@@ -91,7 +93,7 @@ export function createRunner(params, city = []) {
     knee.add(lower);
     hip.add(knee);
     body.add(hip);
-    return { hip, knee };
+    return { hip, knee, upper, lower };
   }
 
   const armL = makeArm(-1);
@@ -137,6 +139,23 @@ export function createRunner(params, city = []) {
   // the hands and feet rather than out of an abstract box around the runner.
   const emitters = [armL.elbow, armR.elbow, legL.knee, legR.knee, torso, head];
 
+  // Every mesh the figure is drawn from, in a fixed order. Afterimages merge
+  // these ten geometries into one buffer and index them by that order, so the
+  // list IS the aJoint contract — reordering it silently re-attaches every
+  // ghost's limbs to the wrong matrices.
+  const bodyMeshes = [
+    torso,
+    head,
+    armL.upper,
+    armL.lower,
+    armR.upper,
+    armR.lower,
+    legL.upper,
+    legL.lower,
+    legR.upper,
+    legR.lower,
+  ];
+
   const runner = {
     group,
     material,
@@ -156,6 +175,7 @@ export function createRunner(params, city = []) {
     phase: 0,
     autopilotT: 0,
     emitPoints: emitters.map(() => new THREE.Vector3()),
+    bodyMeshes,
     laneWrapped: false,
     scopeOverride: null,
     scopeSample: null,

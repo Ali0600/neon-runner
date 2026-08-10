@@ -38,6 +38,14 @@ export function createGui(params, apply, stats, onTrigger, onStep) {
       on();
     });
 
+  gui
+    .add(params, 'sprintFx', ['plume', 'afterimages', 'both'])
+    .name('SPRINT FX')
+    .onChange(() => {
+      syncSprintFx();
+      on();
+    });
+
   const forces = gui.addFolder('Forces (gpgpu)');
   forces.add(params, 'vortex', 0, 20, 0.1).name('trail vortex');
   forces.add(params, 'turbulence', 0, 4, 0.05).name('turbulence');
@@ -46,8 +54,11 @@ export function createGui(params, apply, stats, onTrigger, onStep) {
 
   const emit = gui.addFolder('Emission');
   emit.add(params, 'maxParticles', 2000, CAPACITY, 1000).name('max particles').onChange(on);
-  emit.add(params, 'walkRate', 0, 2000, 10).name('walk rate /s').onChange(on);
-  emit.add(params, 'sprintRate', 0, 30000, 100).name('sprint rate /s').onChange(on);
+  const walkRateCtrl = emit.add(params, 'walkRate', 0, 2000, 10).name('walk rate /s').onChange(on);
+  const sprintRateCtrl = emit
+    .add(params, 'sprintRate', 0, 30000, 100)
+    .name('sprint rate /s')
+    .onChange(on);
   emit.add(params, 'lifetime', 0.2, 3.0, 0.05).name('lifetime (s)').onChange(on);
   emit.add(params, 'spread', 0, 8, 0.05).name('spread').onChange(on);
   emit.add(params, 'riseBias', -2, 6, 0.05).name('rise').onChange(on);
@@ -76,6 +87,16 @@ export function createGui(params, apply, stats, onTrigger, onStep) {
   trail.add(params, 'trailSamples', 2, 240, 1).name('samples').onChange(on);
   trail.add(params, 'trailWidth', 0, 2, 0.01).name('width').onChange(on);
   trail.add(params, 'trailFade', 0.1, 4, 0.05).name('fade (s)').onChange(on);
+
+  const fx = gui.addFolder('Sprint FX');
+  const fxCtrls = [
+    fx.add(params, 'ghostCount', 2, 16, 1).name('afterimages').onChange(on),
+    fx.add(params, 'ghostSpacing', 0.5, 6, 0.1).name('spacing (u)').onChange(on),
+    fx.add(params, 'ghostFade', 0.2, 3, 0.05).name('fade (s)').onChange(on),
+    fx.add(params, 'ghostIntensity', 0.05, 2, 0.01).name('intensity').onChange(on),
+    fx.add(params, 'ghostMinDissolve', 0, 1, 0.05).name('min sprint glow').onChange(on),
+  ];
+  fx.close();
 
   const post = gui.addFolder('Bloom');
   post.add(params, 'bloomStrength', 0, 4, 0.01).name('strength').onChange(on);
@@ -167,6 +188,23 @@ export function createGui(params, apply, stats, onTrigger, onStep) {
   }
   holdCtrl.onChange(syncHoldSpeed);
   syncHoldSpeed();
+
+  // The sprint FX mode makes whole groups of controls inert. Same rule as the
+  // speed lock: grey out what a mode supersedes, rather than leaving a slider
+  // that quietly does nothing.
+  function syncSprintFx() {
+    const ghosts = params.sprintFx === 'afterimages' || params.sprintFx === 'both';
+    for (const c of fxCtrls) c.disable(!ghosts);
+
+    // Only these two feed the continuous plume. lifetime/spread/rise/drag still
+    // shape the takeoff, landing and pickup bursts, which every mode keeps.
+    const plumeOff = params.sprintFx === 'afterimages';
+    walkRateCtrl.disable(plumeOff);
+    sprintRateCtrl.disable(plumeOff);
+    walkRateCtrl.name(plumeOff ? 'walk rate /s (plume off)' : 'walk rate /s');
+    sprintRateCtrl.name(plumeOff ? 'sprint rate /s (plume off)' : 'sprint rate /s');
+  }
+  syncSprintFx();
   sim.add({ stats: true }, 'stats').name('show fps').onChange((v) => {
     stats.dom.style.display = v ? '' : 'none';
   });
