@@ -532,23 +532,3 @@ already trusts.
 presence, reduce the frame to a profile and compare numbers. And on a WebGL
 canvas without `preserveDrawingBuffer`, decode `toDataURL` rather than calling
 `readPixels`.
-
-## A test whose probe points come from the constant under test cannot see it change
-
-If a test derives *where it samples* from the same value it is trying to pin,
-the sample point moves with the bug and the assertion never fires.
-
-**Why it came up:** adding a hold phase to the afterimage erosion curve, both
-new tests were written against `GHOST_HOLD`. One looped `for (t = 0; t <
-GHOST_HOLD; ...)` — setting the constant to `0` emptied the loop, so the test
-passed while asserting nothing. The other sampled at `GHOST_HOLD + 0.1`, which
-slid along with an over-long hold and could never detect one. Both looked
-thorough and read naturally; the mutation harness caught them within seconds
-(`CAUGHT BY THE WRONG TEST` and `NOT CAUGHT`), because it changes exactly the
-constant they were named after. Fixed points (`0.02`, `0.05`, `0.35`) plus an
-explicit floor on the constant made both bite.
-
-**Takeaway:** pin behaviour at fixed, literal sample points; a constant may
-appear in a test as the *expected value*, but almost never as the *input* or a
-loop bound. A loop bounded by the value under test is the sharper trap of the
-two — it degrades to zero iterations, and a zero-iteration loop is a green test.
