@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   MAX_GHOSTS,
   GHOST_FRESH_EROSION,
+  GHOST_HOLD,
   FULL_EROSION,
   plumeEnabled,
   emitsGhosts,
@@ -137,20 +138,38 @@ describe('ghostErosion', () => {
     expect(FULL_EROSION).toBeGreaterThanOrEqual(1.5);
   });
 
-  it('is already coming apart just behind the runner', () => {
+  it('holds a whole figure just behind the runner', () => {
     // The chain lays a ghost's life out along the ground, so WHEN it disintegrates
-    // is WHERE. The ghost immediately behind the runner has to be shedding
-    // already, or the burst lands at the far end of the trail and the effect
-    // reads as starting from the tail and running backwards.
-    expect(ghostErosion(0.9)).toBeGreaterThan(0.3);
+    // is WHERE. The ghost immediately behind the runner is the one the eye reads
+    // as the runner's own afterimage, and it has to be a COMPLETE figure — an
+    // ease-out from the instant of capture makes every ghost a cloud and the
+    // chain never contains a solid one.
+    //
+    // The probe points are FIXED, not walked up to GHOST_HOLD: a loop bounded by
+    // the constant under test empties when that constant is zeroed, and passes
+    // while asserting nothing. The explicit floor is what makes the hold real.
+    expect(GHOST_HOLD).toBeGreaterThan(0.05);
+    expect(ghostErosion(1 - 0.02)).toBeCloseTo(GHOST_FRESH_EROSION, 12);
+    expect(ghostErosion(1 - 0.05)).toBeCloseTo(GHOST_FRESH_EROSION, 12);
   });
 
-  it('runs ahead of a linear ramp through its whole life', () => {
+  it('starts shedding immediately after the hold', () => {
+    // The other half of the same constraint: held is not frozen. Dissolution has
+    // to begin right behind the held figure, or the hold has merely pushed the
+    // burst down the trail — which is the tail-heavy look this replaced. Fixed
+    // probe again: sampling at GHOST_HOLD + delta moves with the sabotage and so
+    // can never see a hold that ran long.
+    expect(ghostErosion(1 - 0.35)).toBeGreaterThan(0.4);
+  });
+
+  it('runs ahead of a linear ramp once the hold is over', () => {
     // Pins the ease-OUT shape rather than only the endpoints, which an ease-in
     // and a straight line both satisfy. Concavity is the property that puts the
-    // energy near the runner.
-    for (let t = 0.05; t < 1; t += 0.05) {
-      const linear = GHOST_FRESH_EROSION + (FULL_EROSION - GHOST_FRESH_EROSION) * t;
+    // energy near the runner. Measured from the end of the hold, since the curve
+    // is deliberately flat before it — that flat span is pinned above.
+    for (let t = GHOST_HOLD + 0.02; t < 1; t += 0.05) {
+      const u = (t - GHOST_HOLD) / (1 - GHOST_HOLD);
+      const linear = GHOST_FRESH_EROSION + (FULL_EROSION - GHOST_FRESH_EROSION) * u;
       expect(ghostErosion(1 - t)).toBeGreaterThanOrEqual(linear);
     }
   });
