@@ -260,8 +260,8 @@ const CASES = [
   {
     name: 'afterimages: a fade that stops short of full dissolution',
     file: 'src/afterimages/logic.js',
-    find: '  return GHOST_FRESH_EROSION + (FULL_EROSION - GHOST_FRESH_EROSION) * t * t;',
-    repl: '  return GHOST_FRESH_EROSION + (1.2 - GHOST_FRESH_EROSION) * t * t;',
+    find: '  return GHOST_FRESH_EROSION + (FULL_EROSION - GHOST_FRESH_EROSION) * t * (2 - t);',
+    repl: '  return GHOST_FRESH_EROSION + (1.2 - GHOST_FRESH_EROSION) * t * (2 - t);',
     expect: 'erodes past the noise ceiling at zero strength',
   },
   {
@@ -272,11 +272,11 @@ const CASES = [
     expect: 'leaves the figure nearly whole at full strength',
   },
   {
-    name: 'afterimages: erode linearly, so the legs go first',
+    name: 'afterimages: flip the burst back to the tail of the trail',
     file: 'src/afterimages/logic.js',
-    find: '  return GHOST_FRESH_EROSION + (FULL_EROSION - GHOST_FRESH_EROSION) * t * t;',
-    repl: '  return GHOST_FRESH_EROSION + (FULL_EROSION - GHOST_FRESH_EROSION) * t;',
-    expect: 'stays below half erosion through mid-life',
+    find: '  return GHOST_FRESH_EROSION + (FULL_EROSION - GHOST_FRESH_EROSION) * t * (2 - t);',
+    repl: '  return GHOST_FRESH_EROSION + (FULL_EROSION - GHOST_FRESH_EROSION) * t * t;',
+    expect: 'is already coming apart just behind the runner',
   },
 
   // --- src/particles/spawnComputation.js ---

@@ -8,7 +8,7 @@ imported with `?raw`.
 
 ```
 npm run dev      # http://localhost:5173
-npm test         # vitest, 224 tests
+npm test         # vitest, 225 tests
 npm run build    # production build
 npm run sabotage # mutation harness — proves the tests bite (~35s)
 ```

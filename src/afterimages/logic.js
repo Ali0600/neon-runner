@@ -96,16 +96,22 @@ export function ghostStrength(snapT, simTime, fadeSeconds) {
  * changes how bright it is, not how much of it exists, so every ghost vanishes
  * as completely as every other one and none leaves sparkles hanging in the air.
  *
- * The curve is SQUARED in age rather than linear. Erosion is the destructive
- * half of the fade and the alpha ramp is the gentle half; letting brightness
- * lead means a ghost stays a readable figure for most of its life and comes
- * apart near the end, instead of losing its legs immediately. At half strength
- * a linear ramp would already be at 0.84 — past the point where the height bias
- * has eaten the legs — where this is at 0.48.
+ * The curve EASES OUT — fast at first, settling as it approaches full
+ * dissolution. That is a statement about where the effect happens in space, not
+ * just in time: the chain lays a ghost's lifecycle out along the ground behind
+ * the runner, so the moment a ghost comes apart is also the PLACE it comes
+ * apart. An ease-in (this was `t * t`) delays the burst to the end of life and
+ * therefore parks it at the far end of the trail, which reads as the effect
+ * starting behind the tail and travelling the wrong way. Easing out puts the
+ * disintegration immediately behind the runner, where the energy belongs, and
+ * leaves the tail as thin dispersing dust.
+ *
+ * A ghost is still whole at capture (0.12): only WHEN it comes apart moved, not
+ * whether it starts complete.
  */
 export function ghostErosion(strength) {
   const t = 1 - strength; // 0 at capture, 1 at the end of the fade
-  return GHOST_FRESH_EROSION + (FULL_EROSION - GHOST_FRESH_EROSION) * t * t;
+  return GHOST_FRESH_EROSION + (FULL_EROSION - GHOST_FRESH_EROSION) * t * (2 - t);
 }
 
 // --- ring ------------------------------------------------------------------

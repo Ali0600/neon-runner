@@ -491,3 +491,44 @@ speed** — the per-particle speed spread is what decorrelates neighbours.
 **Takeaway:** dispersal needs per-element variance, not magnitude. If a scatter
 still reads as the original shape, add randomness per element before adding more
 distance.
+
+## When a lifecycle is laid out in space, timing choices become composition
+
+A trail of afterimages maps each ghost's age to its distance behind the runner.
+That means every decision about *when* something happens in a ghost's life is
+also a decision about *where* it happens on screen — and an easing curve chosen
+purely for how it feels over time will place the effect somewhere you never
+considered.
+
+**Why it came up:** erosion was eased IN so ghosts stayed readable figures and
+came apart late, and spark brightness held a flat gate to the end. Both are
+defensible as timelines. Laid out in space they put the biggest, brightest burst
+at the far end of the trail, so the effect crescendoed at its tail and read as
+running backwards away from the character. Easing OUT and making brightness
+proportional to age moved the peak to just behind the runner; the measured
+brightness profile along the chain went from peaking at the tail to
+`0.07 … 1.00 … 0.12` with the peak near the runner.
+
+**Takeaway:** for any effect whose instances are arranged by age — trails,
+chains, streaks, particle histories — sketch the intensity envelope *along the
+arrangement*, not just against time. Ease-in and ease-out are not
+interchangeable there: they decide which end of the shape carries the energy.
+
+## Measure an intensity envelope; do not eyeball a bloom-heavy frame
+
+Additive rendering plus bloom spreads light far beyond its source, so "which end
+is brighter" is genuinely hard to judge by eye — and easy to judge wrongly with
+confidence.
+
+**Why it came up:** verifying the burst had moved to the correct end of the
+trail, the honest check was summing luminance into a dozen vertical bands and
+reading the profile. It gave a single unambiguous number (peak band index) where
+a screenshot gave an impression. `gl.readPixels` on the default framebuffer
+returned all zeroes yet again, so the pixels came from `toDataURL` decoded
+through an `Image` into a 2D canvas — the same capture path the freeze harness
+already trusts.
+
+**Takeaway:** when a change is about *distribution* of brightness rather than
+presence, reduce the frame to a profile and compare numbers. And on a WebGL
+canvas without `preserveDrawingBuffer`, decode `toDataURL` rather than calling
+`readPixels`.
