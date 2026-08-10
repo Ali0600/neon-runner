@@ -365,3 +365,58 @@ fixed it — exit 130, handler message printed, file byte-identical.
 **Takeaway:** if a program must clean up on a signal, its main loop has to be
 async. And test that by actually killing it: this is a guard whose passing case
 looks identical whether it works or is absent entirely.
+
+## Settle on everything the measurement depends on, not a proxy for it
+
+A "step until it stops moving" loop is only as good as the state it compares. The
+follow rig eases yaw, pitch, distance *and* a speed-driven FOV punch; the first
+three converge in a couple of hundred frames and the FOV takes about a hundred
+more. A settle keyed on the rig's own fields therefore returns while the
+projection matrix is still creeping, and the next two frames differ by a hair.
+
+**Why it came up:** the freeze gate reported that mid-fall and standing-on-a-roof
+had broken — with the afterimages feature, just added, the obvious suspect. It
+had nothing to do with it: the same states failed identically with the feature
+switched off, and every CPU-side value I diffed between the two frames was
+byte-identical. Only dumping the camera's full `matrixWorld` and
+`projectionMatrix` showed `fov` still moving by ~1.9e-4 per frame. The FOV ease
+does have an epsilon snap and does arrive; the instrument stopped watching too
+early.
+
+**Takeaway:** a convergence check must observe every input to the thing being
+measured — for a rendered frame that is the whole camera, matrices included, not
+the rig fields you happen to have named. And when a gate goes red right after a
+change, re-run it with that change disabled before debugging the change: "it
+fails the same way with the feature off" costs one run and moves the search to
+where the bug actually is.
+
+## A merged geometry can carry a skeleton in one attribute
+
+Ten separate limb meshes are ten draw calls per copy. Merging them into one
+buffer with a per-vertex `aJoint` index, and passing the poses as
+`uniform mat4 uJoints[10]`, makes each copy a single draw call — the vertex
+shader picks its own matrix. The parts are rigid, so no skinning weights are
+needed, and `mat3(joint)` transforms normals directly at unit scale.
+
+**Why it came up:** afterimages needed up to 16 copies of the runner's body. As
+`group.clone()` that is 160 draw calls; merged it is 16. Two gotchas: attributes
+must be attached *before* `mergeGeometries` (it drops any not present on every
+input, and the parts here disagreed about `uv`), and the merged bounds describe a
+figure at the origin, so `frustumCulled` has to be off or shader-posed copies get
+culled while plainly on screen.
+
+**Takeaway:** when many copies of a rigid articulated object are needed, index
+the parts in an attribute and pass the transforms as a uniform array, rather than
+cloning the hierarchy.
+
+## Additive fade belongs in the alpha, once
+
+Additive blending is `(SrcAlpha, One)`, so source alpha already scales the whole
+contribution. Multiplying a fade factor into the colour *as well* squares it, and
+the tail of a fade disappears far earlier than the numbers suggest.
+
+**Why it came up:** ghost strength runs 1 to 0 over the fade window. Feeding it
+to both `col` and the alpha made the chain look short and stubby against a
+strength curve that was provably linear.
+
+**Takeaway:** pick one channel for an additive fade and let the others stay pure.
