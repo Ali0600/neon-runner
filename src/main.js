@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import Stats from 'three/addons/libs/stats.module.js';
 import { params } from './params.js';
+import { buildCity } from './city.js';
 import { createScene } from './scene.js';
 import { createInput } from './input.js';
 import { createRunner } from './runner.js';
@@ -23,12 +24,17 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = params.exposure;
 document.body.appendChild(renderer.domElement);
 
-const scene = createScene();
+// One layout, read by the renderer, the runner's collision and the camera's
+// wall avoidance. Three consumers of one array rather than three descriptions
+// of the same city kept in step by hand.
+const city = buildCity();
+
+const scene = createScene(city, params);
 const camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 0.1, 800);
 camera.position.set(0, 4, 10);
 
 const input = createInput(renderer.domElement);
-const runner = createRunner(params);
+const runner = createRunner(params, city);
 scene.add(runner.group);
 
 const particles = createParticleSystem(params);
@@ -46,7 +52,7 @@ scene.add(trail.mesh);
 const game = createGame(params, particles);
 scene.add(game.mesh);
 
-const rig = createCameraRig(camera);
+const rig = createCameraRig(camera, city);
 const scopeCam = createScopeCamera(camera);
 const declutter = createDeclutter(scene);
 const ruler = createRuler(document.getElementById('scope-ruler'));
@@ -63,6 +69,7 @@ document.body.appendChild(stats.dom);
 
 function applyParams() {
   const gpgpu = params.engine === 'gpgpu';
+  scene.applyParams();
   runner.applyParams();
   particles.applyParams();
   particles.mesh.visible = !gpgpu;
@@ -175,6 +182,7 @@ window.__app = {
   renderer,
   scene,
   camera,
+  city,
   runner,
   particles,
   gpuEngine,

@@ -232,3 +232,54 @@ expose `__app.step(count, dt)`, so verification drives frames directly.
 does not depend on the browser deciding to paint. That hook also makes the
 verification *deterministic* — fixed `dt`, exact frame counts — which is better
 than screenshotting real time anyway.
+
+## A face-local coordinate that is constant on that face
+
+For an axis-aligned box, a point on the face whose normal is `±z` always has
+`|localZ| == halfDepth` — that coordinate carries no information *on that face*.
+Only the two coordinates spanning the face vary across it.
+
+**Why it came up:** the building shader drew corner seams with
+`max(smoothstep(hw-t, hw, |x|), smoothstep(hd-t, hd, |z|))`, intending "near a
+vertical corner". On every `±z` face the second term is 1 everywhere, so the
+whole facade lit up instead of just its edges — and the fix is to measure along
+the same axis the window grid already picks (`abs(normal.x) > 0.5 ? z : x`).
+
+**Takeaway:** when shading per-face, derive face-local coordinates from the
+normal and use only the two that vary; a term built from the face's own normal
+axis is a constant, and a constant inside a `smoothstep` is a flat wash.
+
+## Read the driver's shader log, not `material.program`
+
+three creates the program object before linking, so `material.program` is
+truthy for a shader that failed to compile. The real evidence is
+`gl.getShaderInfoLog(program.fragmentShader)` and
+`gl.getProgramParameter(program.program, gl.LINK_STATUS)`.
+
+**Why it came up:** a `float col` shadowing the later `vec3 col` produced
+`ERROR: 0:246: 'col' : redefinition`, and the buildings silently vanished with
+only `INVALID_OPERATION: useProgram: program not valid` in the console — a
+message that names no file, no line and no cause. This project had already been
+misled once by `material.program` in the opposite direction, reporting a working
+material as uncompiled.
+
+**Takeaway:** `material.program` answers "was a program object allocated", never
+"did it compile". Call `renderer.compile()` and read the info logs; the driver
+names the line.
+
+## Verify a rendered value by differencing, not by eye
+
+To decide whether a surface is drawing what you think, sample the framebuffer at
+a projected world point twice — once with the object visible, once hidden — and
+subtract. The difference is that object's contribution, isolated from bloom,
+fog, tone mapping and anything drawn in front of it.
+
+**Why it came up:** a facade looked far too bright in one style and plausible in
+the other, and there were three candidate explanations (particles in front, fog,
+the shader). Differencing gave (116,30,12) — decisively the building — and after
+the fix (1,1,2). Guessing from the screenshot had already produced two wrong
+theories.
+
+**Takeaway:** always check the sample point is inside the frustum first and fail
+loudly if not; an off-screen `readPixels` returns black, which reads exactly
+like "the object contributes nothing".

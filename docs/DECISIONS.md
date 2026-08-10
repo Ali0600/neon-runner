@@ -12,6 +12,74 @@
 
 ---
 
+## D31 — A follow camera clears architecture by pulling IN, not by pushing OUT
+
+**Fork:** the rig lerps to a computed point with nothing stopping it entering a
+building. Two ways to keep it out: push the desired point out of any box it has
+entered (reusing `slideXZ`, already written for the runner), or pull it in along
+the sightline from the runner until the view is clear.
+
+- *Push out:* one line, and it reuses the runner's collision. But `slideXZ`
+  resolves to the **nearest** face, which is frequently the far one — measured
+  in the browser, the camera popped from z=36.1 through to z=38.3 on a tower
+  spanning 30.4–37.7, i.e. to the opposite side of the building from the runner
+  it is supposed to be following.
+- *Pull in:* a segment-vs-slab test from the runner to the desired point, taking
+  the nearest blocker. Keeps the camera on the runner's side by construction.
+
+**Chosen:** pull in (`viewClearance`). The push-out version was implemented and
+rejected on measurement, not on inspection — it looked entirely correct in code
+review.
+
+A floor under the pull-in fraction was also tried and removed. It reads as
+kinder than collapsing onto the runner, but when the available clearance is
+smaller than the floor it puts the camera back **inside** the wall, which is
+strictly worse — and that is exactly the case that arises when the orbit is
+dragged to look through a building the runner is standing against.
+
+**Status of alternatives:** push-out — `rejected — resolves to the nearest face,
+which flips the camera to the wrong side of the building`. Minimum pull-in
+distance — `rejected — reintroduces the collision it was meant to soften`.
+
+## D30 — Buildings replace the pylons, and the layout becomes shared data
+
+**Fork:** the backdrop was 90 instanced "pylons" — 0.18–0.48 units wide, on a
+jittered ring at radius 40–190, placed with unseeded `Math.random()`. Their own
+comment recorded why they were thin: *"these are distant light columns, not
+architecture. A wide pylon near the camera reads as a flat coloured bar across
+the frame."* Making them climbable means reversing that.
+
+- *Keep the pylons, add separate climbable towers:* two systems describing the
+  same kind of object, drifting independently.
+- *One building field, near ones climbable, far ones backdrop:* one layout, one
+  draw call, one source of truth.
+
+**Chosen:** one field — 8 climbable towers inside the play area (r 30–92) and 62
+skyline buildings beyond (r 104–195), all from `buildCity()` in `src/city.js`.
+
+Three things fell out of it that were not obvious going in:
+
+- **The layout had to become shared data.** The renderer, the runner's collision
+  and the camera's wall avoidance all read the same array. Three descriptions of
+  one city kept in step by hand is the failure this project has already seen
+  between a display and a measurement.
+- **Seeded, unlike the pylons.** The frame-hash harness compares renders across
+  runs; a skyline that differs per load makes every one of those comparisons
+  meaningless. `mulberry32(CITY_SEED)`, and a test asserts a different seed gives
+  a different world so the determinism test cannot pass vacuously.
+- **The pylon comment was right, and it is about uniformity rather than width.**
+  A wide *uniformly emissive* face reads as a coloured bar; a dark body with
+  small lit windows, corner seams and a bright roofline reads as a building. The
+  first attempt at the facade shader lit the entire face by accident (see
+  `docs/learnings.md`) and looked exactly like the bar the comment warned about,
+  which is a fair demonstration of the point.
+
+**Status of alternatives:** keeping the pylons as a separate far ring —
+`deferred — worth trying` if the skyline ever needs to extend past the ground
+plane, where real geometry stops being affordable. *Revisit hook:* `createScene`
+takes the city array, so a second decorative band is an extra `createBuildings`
+call with its own config.
+
 ## D28 — A control that enters a mode owns leaving it
 
 The scrub slider forced `timeScale = 0` so a single frame could never mix two

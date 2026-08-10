@@ -32,6 +32,14 @@ Two things worth knowing, because neither is obvious from the panel:
 
 ## Features
 
+- **A solid city.** 70 instanced buildings — 8 towers inside the play field and
+  a 62-building skyline beyond — laid out from a seeded PRNG so the world is
+  identical every load, and rendered in one draw call as dark slabs with lit
+  window grids, corner seams and a bright roofline. They are real geometry, not
+  backdrop: the runner collides with them and the camera pulls in along its
+  sightline rather than clipping through. One layout array is shared by the
+  renderer, the collision and the camera, so the city you see is the city you
+  hit.
 - **Two switchable particle engines.** **Analytic** derives each particle's
   position from a closed form of its age — exact pause and scrub, cost
   proportional to what is alive. **GPGPU** integrates position and velocity in
@@ -114,6 +122,7 @@ while the analytic engine pays only for what is alive.
 | `src/particles/ringRanges.js`, `slotUv.js` | Pure ring→update-range and slot→texel mappings (unit tested) |
 | `src/shaders/chunks/particleCommon.glsl` | Billboard and sizing maths shared by both engines' vertex shaders |
 | `src/runner.js` | Kinematics, joint hierarchy, run cycle, dissolve material |
+| `src/city.js` | Pure: building layout, ground height, wall faces, collision, camera sightlines |
 | `src/speed.js`, `src/constants.js` | Pure speed-precedence resolution; shared motion constants |
 | `src/trail/Trail.js` | Position sampling and ribbon rebuild |
 | `src/camera.js` | Third-person follow rig with epsilon-snapped easing |
@@ -133,7 +142,14 @@ trying; `docs/learnings.md` covers the transferable concepts.
 npm test
 ```
 
-103 tests over the pure modules:
+137 tests over the pure modules:
+
+- **city layout and queries** — a deterministic world for a seed (and a
+  *different* one for a different seed, so the determinism test cannot pass
+  vacuously), every pickup and the whole autopilot lane left clear, no two
+  footprints overlapping, roof heights at the exact footprint boundary, wall
+  normals snapped to a flat face, and a camera sightline that stops in front of
+  a building rather than behind it.
 
 - **ring buffer ranges** — wraparound, exact boundaries, oversized writes, and
   the invariant that no range ever exceeds the buffer.

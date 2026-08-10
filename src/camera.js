@@ -1,9 +1,14 @@
 import * as THREE from 'three';
+import { viewClearance } from './city.js';
 
 const _desired = new THREE.Vector3();
 const _look = new THREE.Vector3();
 
-export function createCameraRig(camera) {
+// Wider than the near plane (0.1) so a wall the rig is pressed against never
+// clips open and shows the building's interior.
+const CAM_RADIUS = 0.6;
+
+export function createCameraRig(camera, city = []) {
   const rig = {
     camera,
     yaw: Math.PI, // behind the runner at start
@@ -39,6 +44,37 @@ export function createCameraRig(camera) {
       runner.position.y + rig.height + Math.sin(pitch) * dist * 0.55,
       runner.position.z + Math.cos(yaw) * horiz
     );
+
+    // Keep the rig out of the architecture by pulling it IN along the sightline
+    // from the runner, never by pushing it out of the wall it entered — the
+    // nearest face is frequently the far one, which flips the camera to the
+    // other side of the building and hides the thing it is following.
+    //
+    // Correcting the TARGET rather than the camera leaves the easing below
+    // untouched, so this needs no epsilon of its own: a frozen runner gives a
+    // frozen desired point either way.
+    const t = viewClearance(
+      city,
+      runner.position.x,
+      runner.position.y + 1.15,
+      runner.position.z,
+      _desired.x,
+      _desired.y,
+      _desired.z,
+      CAM_RADIUS
+    );
+    // No floor under `t`. A minimum pull-in sounds kinder than collapsing onto
+    // the runner, but when the clearance is smaller than the floor it puts the
+    // camera back inside the wall — strictly worse than a tight shot, and it is
+    // exactly the case that arises when the orbit is dragged to look through a
+    // building the runner is standing against.
+    if (t < 1) {
+      _desired.set(
+        runner.position.x + (_desired.x - runner.position.x) * t,
+        runner.position.y + 1.15 + (_desired.y - (runner.position.y + 1.15)) * t,
+        runner.position.z + (_desired.z - runner.position.z) * t
+      );
+    }
 
     // Framerate-independent damping. Exponential easing only ever approaches
     // its target, so below EPS it snaps: without that the camera drifts by

@@ -1,24 +1,11 @@
 import * as THREE from 'three';
-import { mulberry32, placePickups, sweptCollect, comboStep, scoreFor } from './logic.js';
+import { pickupLayout, sweptCollect, comboStep, scoreFor } from './logic.js';
 
 const SAVE_KEY = 'neon-runner.save.v1';
-const SEED = 20260808;
-const COUNT = 22;
-const FIELD_RADIUS = 95;
-const MIN_SEPARATION = 11;
 const RESPAWN_DELAY = 6; // sim seconds
 const BASE_SCORE = 100;
 
 const COMBO_CFG = { sprintSpeed: 12, growPerSec: 0.45, decayPerSec: 1.6, max: 8 };
-
-// The autopilot flies a Lissajous figure-8; seeding a few pickups onto it means
-// the demo collects things without the autopilot ever steering. Steering toward
-// mutable game state would make every headless verification depend on game
-// tuning, and the autopilot is the verification workhorse.
-const AUTOPILOT_TS = [0.6, 1.9, 3.3, 4.7, 6.1, 7.4];
-function autopilotPoint(t) {
-  return { x: Math.sin(t) * 34, z: Math.sin(t * 2) * 20 };
-}
 
 const _m4 = new THREE.Matrix4();
 const _q = new THREE.Quaternion();
@@ -43,10 +30,7 @@ function loadSave() {
 }
 
 export function createGame(params, particles) {
-  const rng = mulberry32(SEED);
-  const scattered = placePickups(rng, COUNT, FIELD_RADIUS, MIN_SEPARATION);
-  const onPath = AUTOPILOT_TS.map(autopilotPoint);
-  const pickups = [...onPath, ...scattered].map((p) => ({
+  const pickups = pickupLayout().map((p) => ({
     x: p.x,
     z: p.z,
     active: true,
