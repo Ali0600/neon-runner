@@ -136,7 +136,7 @@ behaviour before trusting it. When sabotaging a file to prove a test bites, chec
 before and after so the restore is provably clean, and never use `git checkout` to undo a
 sabotage on uncommitted work.
 
-`npm run sabotage` (`scripts/sabotage.mjs`) does that mechanically: 39 cases, each
+`npm run sabotage` (`scripts/sabotage.mjs`) does that mechanically: 40 cases, each
 reintroducing one defect and asserting the specific test written to guard it goes red.
 **Add a case whenever you add a guard**, and run it before opening a PR — it is not in CI
 because it runs the suite once per case.

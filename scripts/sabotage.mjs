@@ -265,11 +265,18 @@ const CASES = [
     expect: 'erodes past the noise ceiling at zero strength',
   },
   {
-    name: 'afterimages: born at the live body cap (legless ghosts)',
+    name: 'afterimages: born as a fresnel outline again',
     file: 'src/afterimages/logic.js',
-    find: 'export const GHOST_FRESH_EROSION = 0.12;',
-    repl: 'export const GHOST_FRESH_EROSION = 0.62;',
-    expect: 'leaves the figure nearly whole at full strength',
+    find: 'export const GHOST_FRESH_EROSION = 0.85;',
+    repl: 'export const GHOST_FRESH_EROSION = 0.12;',
+    expect: 'is born as a full particle figure',
+  },
+  {
+    name: 'afterimages: born nearly dissolved (no figure left to see)',
+    file: 'src/afterimages/logic.js',
+    find: 'export const GHOST_FRESH_EROSION = 0.85;',
+    repl: 'export const GHOST_FRESH_EROSION = 1.4;',
+    expect: 'is born as a full particle figure',
   },
   {
     name: 'afterimages: flip the burst back to the tail of the trail',

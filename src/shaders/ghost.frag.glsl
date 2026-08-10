@@ -17,11 +17,16 @@ void main() {
   float n = dissolveNoise(vLocal, uTime);
 
   // The one difference from the live body: the erosion offset arrives as a
-  // uniform rather than being derived from a dissolve here. It runs from nearly
-  // nothing at capture — this sum is height-biased and eats feet first, so a
-  // ghost that started where the live body sits would be born legless — up past
-  // this sum's ceiling of 1.5, which is what lets a ghost reach nothing at all.
-  // The live cap tops out at 0.62 and never could.
+  // uniform rather than being derived from a dissolve here. It runs from well
+  // ALONG at capture (0.85) up past this sum's ceiling of 1.5, which is what
+  // lets a ghost reach nothing at all — the live cap tops out at 0.62 and never
+  // could.
+  //
+  // Starting high is deliberate and is the opposite of what it sounds like: the
+  // fresnel below makes an un-eroded shell read as a hollow outline, whereas the
+  // matter this discards is drawn as the spark cloud (ghostSparks.vert.glsl),
+  // which fills the figure in solid. A fresh ghost is therefore mostly sparks
+  // plus a mesh remnant up top, where the height bias holds the threshold high.
   float threshold = (n + dissolveHeightBias(vLocal.y)) - uErosion;
 
   if (threshold < 0.0) discard;

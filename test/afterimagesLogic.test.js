@@ -121,12 +121,21 @@ describe('ghostStrength', () => {
 });
 
 describe('ghostErosion', () => {
-  it('leaves the figure nearly whole at full strength', () => {
-    // The reported bug: erosion is height-biased and eats FEET first, so a fresh
-    // ghost starting anywhere near the live body's 0.62 cap is born without
-    // legs and the chain reads as floating torsos. It has to start near zero.
+  it('is born as a full particle figure, not a fresnel outline', () => {
+    // What "full" actually means here, decoded from an annotated screenshot: the
+    // ghost MESH is shaded by a fresnel term, so an un-eroded ghost is bright
+    // only at grazing angles and reads as a hollow outline. The figure that
+    // looks solid is the one whose body has already converted into the spark
+    // cloud — dense, body-shaped, mesh remnant at the head where the height bias
+    // holds the threshold up. That state lives around erosion 0.85, so a ghost
+    // has to be BORN there; being born near zero puts the outline phase at the
+    // front of the chain, which is the state that was rejected.
+    //
+    // Literal bounds, not GHOST_FRESH_EROSION: a test that reads its own
+    // expectation off the constant under test cannot see that constant move.
+    expect(ghostErosion(1)).toBeGreaterThan(0.7);
+    expect(ghostErosion(1)).toBeLessThan(1.1);
     expect(ghostErosion(1)).toBeCloseTo(GHOST_FRESH_EROSION, 12);
-    expect(ghostErosion(1)).toBeLessThan(0.2);
   });
 
   it('erodes past the noise ceiling at zero strength', () => {
@@ -142,7 +151,11 @@ describe('ghostErosion', () => {
     // is WHERE. The ghost immediately behind the runner has to be shedding
     // already, or the burst lands at the far end of the trail and the effect
     // reads as starting from the tail and running backwards.
-    expect(ghostErosion(0.9)).toBeGreaterThan(0.3);
+    //
+    // Measured as PROGRESS past birth, not as an absolute level: ghosts are now
+    // born at 0.85, so any absolute threshold down here is satisfied by the
+    // birth value alone and would pass for a curve that does nothing at all.
+    expect(ghostErosion(0.9) - ghostErosion(1)).toBeGreaterThan(0.05);
   });
 
   it('runs ahead of a linear ramp through its whole life', () => {
