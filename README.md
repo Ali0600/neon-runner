@@ -43,6 +43,9 @@ Two things worth knowing, because neither is obvious from the panel:
   complete figure and does not fade where it stands: the matter it loses to
   erosion is redrawn as particles flying outward, so a ghost comes apart into a
   scattering cloud, feet first, cooling from cyan to magenta as it goes. The
+  burst peaks just behind the runner and thins to dust down the trail, because
+  the chain lays a ghost's life out along the ground — when it disintegrates is
+  also where. The
   sparks are the *complement* of the surviving silhouette — the same geometry
   drawn a second time as points, visible exactly where the mesh has given that
   matter up, so the conversion is exact rather than two effects timed to match.

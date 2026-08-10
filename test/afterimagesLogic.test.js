@@ -137,12 +137,22 @@ describe('ghostErosion', () => {
     expect(FULL_EROSION).toBeGreaterThanOrEqual(1.5);
   });
 
-  it('stays below half erosion through mid-life', () => {
-    // Pins the curve's shape, not just its endpoints: the alpha ramp is the
-    // gentle half of the fade and erosion is the destructive half, so a ghost
-    // should still be a readable figure halfway through. A linear ramp is at
-    // 0.84 here — already past where the height bias eats the legs.
-    expect(ghostErosion(0.5)).toBeLessThan(0.62);
+  it('is already coming apart just behind the runner', () => {
+    // The chain lays a ghost's life out along the ground, so WHEN it disintegrates
+    // is WHERE. The ghost immediately behind the runner has to be shedding
+    // already, or the burst lands at the far end of the trail and the effect
+    // reads as starting from the tail and running backwards.
+    expect(ghostErosion(0.9)).toBeGreaterThan(0.3);
+  });
+
+  it('runs ahead of a linear ramp through its whole life', () => {
+    // Pins the ease-OUT shape rather than only the endpoints, which an ease-in
+    // and a straight line both satisfy. Concavity is the property that puts the
+    // energy near the runner.
+    for (let t = 0.05; t < 1; t += 0.05) {
+      const linear = GHOST_FRESH_EROSION + (FULL_EROSION - GHOST_FRESH_EROSION) * t;
+      expect(ghostErosion(1 - t)).toBeGreaterThanOrEqual(linear);
+    }
   });
 
   it('rises monotonically as a ghost fades', () => {

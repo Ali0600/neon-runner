@@ -46,6 +46,20 @@ is the obvious failure.
   before that. An age-proportional fade therefore dims them through exactly the window
   worth watching. Age enters as a gate (`smoothstep(0.0, 0.22, uStrength)`), not a ramp.
 
+**Revised (#17): the burst has to happen where the runner is, not where the trail ends.**
+Both curves above were tuned as if a ghost's life were only a timeline. It is also a
+*place*: the chain lays the lifecycle out along the ground, so the moment a ghost comes
+apart is the point in space it comes apart. Erosion eased IN, so disintegration arrived
+late in life and therefore at the far end of the trail, and the spark gate held full
+brightness to the end, so the most-scattered ghost was also the brightest thing on screen.
+Together they made the effect crescendo at its tail and read as running backwards.
+
+Erosion now eases OUT (`t * (2 - t)`), putting the burst immediately behind the runner,
+and the gate is a plain ramp (`uStrength`) so the tail thins into dust. The measured
+brightness envelope along the chain went from peaking at the tail to
+`0.07 … 1.00 … 0.12` with the peak just behind the runner. Nothing about the full-body
+property changed — a ghost is still whole at capture; only WHEN it comes apart moved.
+
 **Status of alternatives:** `emitBurst` — `rejected — analytic-only, event-shaped, and
 CPU-injected; this needs continuous per-ghost emission in both engines`.
 

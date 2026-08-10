@@ -21,15 +21,16 @@ void main() {
   vec3 tint = mix(uColorA, uColorB, uStrength);
   vec3 col = mix(tint, uColorC, vSeed * 0.35);
 
-  // Sparks only exist once erosion has passed a vertex, which is the BACK half
-  // of a ghost's life — exactly where an age-proportional fade would have dimmed
-  // them to nothing. So age enters as a gate, not a ramp: full brightness while
-  // the ghost is coming apart, and a short taper over the last fifth so the
-  // debris does not pop out when the slot is finally hidden.
-  float a = vFade * smoothstep(0.0, 0.22, uStrength) * falloff;
+  // Age is a RAMP, not a gate. It was a gate while erosion eased in and sparks
+  // only existed in the back half of life; now that erosion eases out they exist
+  // from the front, and holding full brightness to the end makes the oldest,
+  // most-scattered ghost the brightest thing on screen — the trail crescendos at
+  // its tail instead of behind the runner. Proportional to age, the burst peaks
+  // where it starts and the tail thins into dust.
+  float a = vFade * uStrength * falloff;
   if (a <= 0.0) discard;
 
   // Brighter than the shell it came off: this IS the disappearance now, and the
   // mesh is fading out from under it.
-  gl_FragColor = vec4(col * uGain * 2.4, a);
+  gl_FragColor = vec4(col * uGain * 1.8, a);
 }
