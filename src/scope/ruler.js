@@ -51,7 +51,7 @@ export function createRuler(container) {
 
   const ruler = { lines, labels };
 
-  ruler.update = function update(camera, params, centerX, viewHeight, aspect) {
+  ruler.update = function update(camera, params, centerX, viewHeight, aspect, centerY = 0) {
     lines.visible = params.scope && params.scopeRuler;
     if (!lines.visible) {
       for (const el of labels) el.style.display = 'none';
@@ -63,7 +63,9 @@ export function createRuler(container) {
 
     // Rebuilding only when the tick set actually changes keeps a frozen frame
     // byte-stable and avoids per-frame DOM writes.
-    const key = `${step}|${ticks[0]?.value}|${ticks.length}|${viewHeight}|${aspect.toFixed(4)}`;
+    // centerY belongs in the key: without it the vertical column never rebuilds
+    // as the camera climbs, and the scale silently stops covering the view.
+    const key = `${step}|${ticks[0]?.value}|${ticks.length}|${viewHeight}|${aspect.toFixed(4)}|${Math.round(centerY / step)}`;
     if (key === lastKey) return;
     lastKey = key;
 
@@ -85,14 +87,19 @@ export function createRuler(container) {
       write(ticks[0].value, BASE_Y, 0, ticks[ticks.length - 1].value, BASE_Y, 0);
     }
 
-    // Vertical scale, pinned near the left edge of the view.
+    // Vertical scale, pinned near the left edge of the view. It spans the band
+    // actually on screen rather than a fixed 0..viewHeight: once the camera
+    // follows a climb, a ground-anchored column scrolls out of frame exactly
+    // when altitude is the thing you are trying to read.
     const colX = centerX - halfW * 0.94;
     const vStep = step;
-    for (let y = 0; y <= viewHeight; y += vStep) {
+    const vLo = Math.max(0, Math.floor((centerY - viewHeight / 2) / vStep) * vStep);
+    const vHi = centerY + viewHeight / 2;
+    for (let y = vLo; y <= vHi; y += vStep) {
       const major = Math.round(y / vStep) % 5 === 0;
       write(colX, y, 0, colX + (major ? 0.9 : 0.4), y, 0);
     }
-    write(colX, 0, 0, colX, viewHeight, 0);
+    write(colX, vLo, 0, colX, vHi, 0);
 
     attr.addUpdateRange(0, n * 6);
     attr.needsUpdate = true;

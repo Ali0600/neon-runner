@@ -71,6 +71,11 @@ Two things worth knowing, because neither is obvious from the panel:
   which numbers are exact and which are sampled, and a time scrub (`.` steps one
   frame) that is reversible to the exact frame in the analytic engine and
   honestly disabled in the GPGPU one.
+  **Jumps and wall runs are scheduled events too** — the lane grows a wall, the
+  camera follows the runner's height, and the ruler's vertical scale tracks the
+  band on screen instead of staying pinned to the ground. A side-on view already
+  contains the up axis, so it is the best look at either move. Pick which kind
+  `T` fires from **trigger kind** to watch one in isolation.
 - **Speed lock** (`HOLD SPEED` in the Sim folder) — pins the runner to a constant
   speed from 0 to 30 u/s, past the game's own sprint of 17. It overrides
   magnitude only, so scope turns still steer while the speed stays flat; the
@@ -141,6 +146,7 @@ while the analytic engine pays only for what is alive.
 | `src/camera.js` | Third-person follow rig with epsilon-snapped easing |
 | `src/scope/scopeCamera.js`, `declutter.js`, `ruler.js`, `readouts.js` | SCOPE camera rig, backdrop suppression, ruler, live readouts |
 | `src/scope/schedule.js`, `lane.js`, `rulerTicks.js`, `statsMath.js` | Pure: event scheduling, lane wrap, tick selection, stat reducers |
+| `src/scope/laneWall.js` | The wall a scheduled wall-run climbs — a prop, drawn where the scripted climb is |
 | `src/game/Game.js`, `src/game/logic.js` | Pickup rings and HUD; pure placement, swept collection, combo |
 | `src/styles.js` | Plain-data style presets and the switch that applies them |
 | `src/shaders/*.glsl` | Particle, trail and dissolve shaders |
@@ -155,7 +161,7 @@ trying; `docs/learnings.md` covers the transferable concepts.
 npm test
 ```
 
-173 tests over the pure modules:
+179 tests over the pure modules:
 
 - **the vertical state machine** — every transition between ground, air and
   wall; a jump that returns to exactly its launch height; an apex that matches
@@ -186,7 +192,10 @@ npm test
 - **speed resolution** — precedence between the speed lock, a path driver's
   request and the walk/sprint flag, including that a commanded zero is a real
   request rather than an absent one.
-- **scope schedule and lane** — event sequence construction, sampling exactly on
+- **scope schedule and lane** — event sequence construction, every kind present
+  by default (so the "drops disabled kinds" test cannot pass vacuously), the jump
+  key released before the segment join, a climb window that closes before
+  touchdown and is still long enough to clear the lane wall, sampling exactly on
   boundaries (including ones that are not exactly representable in binary),
   speed and heading continuity across every segment join, and lane wrapping
   under large overshoot.

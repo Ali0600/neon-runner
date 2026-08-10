@@ -22,6 +22,9 @@ export function createScopeCamera(perspective) {
     dollyOffset: 0,
     // Lane coordinate at the centre of the view; the ruler reads it.
     centerX: 0,
+    // Vertical centre of the view. Read by the ruler so its scale spans the
+    // band actually on screen rather than a fixed one anchored at the ground.
+    centerY: CENTER_Y,
   };
 
   /** Size the ortho frustum from a world-unit view height, leaving zoom at 1. */
@@ -46,11 +49,18 @@ export function createScopeCamera(perspective) {
     // plume fills the rest of the frame.
     const centerX = runner.position.x - halfW * (2 * params.scopeLead - 1);
     rig.centerX = centerX;
+
+    // Follow height, so a climb does not leave the frame in under a second.
+    // A pure max, NOT an ease: this file snaps by design, so freeze-safety stays
+    // structural — a frozen runner gives a constant target and therefore a
+    // constant camera, with no epsilon to tune.
+    const centerY = Math.max(CENTER_Y, runner.position.y + 1);
+    rig.centerY = centerY;
     const cam = rig.active(params);
 
     if (cam.isOrthographicCamera) {
       // Any distance works under ortho; far enough to clear the scene.
-      cam.position.set(centerX, CENTER_Y, 600 + rig.dollyOffset);
+      cam.position.set(centerX, centerY, 600 + rig.dollyOffset);
     } else {
       // Match the same world extent so the two projections are comparable and
       // the ruler stays valid in both.
@@ -59,13 +69,13 @@ export function createScopeCamera(perspective) {
         cam.updateProjectionMatrix();
       }
       const dist = halfH / Math.tan(THREE.MathUtils.degToRad(SCOPE_FOV) / 2);
-      cam.position.set(centerX, CENTER_Y, dist);
+      cam.position.set(centerX, centerY, dist);
     }
 
     // Look straight down -Z at the lane centreline, NOT at the runner: pinning
     // z to the centreline is what makes the lateral swing visible instead of
     // being cancelled out by a tracking camera.
-    cam.lookAt(centerX, CENTER_Y, 0);
+    cam.lookAt(centerX, centerY, 0);
     cam.updateMatrixWorld();
   };
 

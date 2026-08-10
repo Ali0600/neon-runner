@@ -24,3 +24,8 @@ export const CREST_BOOST = 6.0; // upward pop on clearing the lip
 // BODY_RADIUS outside the face, so clearing the roof needs at least that much
 // inward travel or it tops out and drops straight back down the wall.
 export const CREST_INSET = 0.9;
+
+// Roofline of the synthetic wall SCOPE puts in the lane. Low enough that the
+// climb, the crest and the fall back down all fit inside one scheduled segment,
+// which is what makes the whole move inspectable in a single pass.
+export const SCOPE_WALL_TOP = 22.0;

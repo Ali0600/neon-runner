@@ -6,8 +6,12 @@ import {
   driveCommand,
   DEFAULT_DURATIONS,
 } from '../src/scope/schedule.js';
+import { WALL_CLIMB_SPEED, SCOPE_WALL_TOP } from '../src/constants.js';
 
-const CFG = { interval: 3, turn: true, sprint: true, stop: true };
+const CFG = { interval: 3, turn: true, sprint: true, stop: true, jump: true, wallrun: true };
+// One cruise leads each event, so the count tracks the number of event kinds.
+const EVENT_KINDS = ['turn', 'sprint', 'stop', 'jump', 'wallrun'];
+const CMD_CFG = { turnAmplitude: 6 };
 
 describe('buildSchedule', () => {
   it('period is the sum of every segment duration', () => {
@@ -17,9 +21,16 @@ describe('buildSchedule', () => {
       12
     );
     expect(s.period).toBeCloseTo(
-      3 * 3 + DEFAULT_DURATIONS.turn + DEFAULT_DURATIONS.sprint + DEFAULT_DURATIONS.stop,
+      3 * EVENT_KINDS.length + EVENT_KINDS.reduce((a, k) => a + DEFAULT_DURATIONS[k], 0),
       12
     );
+  });
+
+  it('carries every event kind by default', () => {
+    // Guards the guard below: if a kind silently stopped being scheduled, the
+    // "drops disabled kinds" test would still pass while covering nothing.
+    const kinds = buildSchedule(CFG).segments.map((x) => x.kind);
+    for (const k of EVENT_KINDS) expect(kinds, `${k} missing`).toContain(k);
   });
 
   it('drops disabled kinds but keeps the cruise segments', () => {
@@ -27,13 +38,28 @@ describe('buildSchedule', () => {
     const kinds = s.segments.map((x) => x.kind);
     expect(kinds).not.toContain('turn');
     expect(kinds).not.toContain('stop');
-    expect(kinds.filter((k) => k === 'cruise').length).toBe(3);
+    expect(kinds.filter((k) => k === 'cruise').length).toBe(EVENT_KINDS.length);
     expect(kinds).toContain('sprint');
+  });
+
+  it('drops the vertical kinds when they are disabled', () => {
+    const s = buildSchedule({ ...CFG, jump: false, wallrun: false });
+    const kinds = s.segments.map((x) => x.kind);
+    expect(kinds).not.toContain('jump');
+    expect(kinds).not.toContain('wallrun');
+    expect(kinds).toContain('turn');
   });
 
   it('with every event disabled it is pure cruise with a non-zero period', () => {
     // A zero period would divide by zero in sampleSchedule.
-    const s = buildSchedule({ interval: 2, turn: false, sprint: false, stop: false });
+    const s = buildSchedule({
+      interval: 2,
+      turn: false,
+      sprint: false,
+      stop: false,
+      jump: false,
+      wallrun: false,
+    });
     expect(s.segments.every((x) => x.kind === 'cruise')).toBe(true);
     expect(s.period).toBeGreaterThan(0);
     expect(() => sampleSchedule(s, 7.3)).not.toThrow();
@@ -180,6 +206,57 @@ describe('driveCommand', () => {
         1e-3
       );
     }
+  });
+
+  it('signals jump only inside a jump segment, and only for part of it', () => {
+    const s = buildSchedule(CFG);
+    const seg = s.segments.find((x) => x.kind === 'jump');
+    const at = (tNorm) =>
+      driveCommand(sampleSchedule(s, seg.start + tNorm * seg.duration), CMD_CFG, 0);
+    expect(at(0.02).jump).toBe(false); // run-up first
+    expect(at(0.3).jump).toBe(true);
+    // Released before the join, or the following segment inherits a held key
+    // and the runner takes off again the moment it lands.
+    expect(at(0.9).jump).toBe(false);
+  });
+
+  it('never signals jump or climb during an ordinary segment', () => {
+    const s = buildSchedule(CFG);
+    for (const seg of s.segments) {
+      if (seg.kind === 'jump' || seg.kind === 'wallrun') continue;
+      for (const f of [0.05, 0.3, 0.5, 0.7, 0.95]) {
+        const c = driveCommand(sampleSchedule(s, seg.start + f * seg.duration), CMD_CFG, 0);
+        expect(c.jump, `${seg.kind} at ${f}`).toBe(false);
+        expect(c.climb, `${seg.kind} at ${f}`).toBe(false);
+      }
+    }
+  });
+
+  it('closes the climb window before the runner could land again', () => {
+    // Left open, the wall is re-mounted on touchdown and one segment shows two
+    // climbs instead of one clean pass.
+    const s = buildSchedule(CFG);
+    const seg = s.segments.find((x) => x.kind === 'wallrun');
+    const at = (tNorm) =>
+      driveCommand(sampleSchedule(s, seg.start + tNorm * seg.duration), CMD_CFG, 0);
+    expect(at(0.05).climb).toBe(false);
+    expect(at(0.4).climb).toBe(true);
+    expect(at(0.6).climb).toBe(false);
+    expect(at(0.99).climb).toBe(false);
+  });
+
+  it('gives the climb window enough time to clear the lane wall', () => {
+    // The crest has to happen INSIDE the segment, or the scope shows a climb
+    // that never finishes and the whole point of the event is lost.
+    const s = buildSchedule(CFG);
+    const seg = s.segments.find((x) => x.kind === 'wallrun');
+    let climbSeconds = 0;
+    const steps = 400;
+    for (let i = 0; i < steps; i++) {
+      const c = driveCommand(sampleSchedule(s, seg.start + ((i + 0.5) / steps) * seg.duration), CMD_CFG, 0);
+      if (c.climb) climbSeconds += seg.duration / steps;
+    }
+    expect(climbSeconds * WALL_CLIMB_SPEED).toBeGreaterThan(SCOPE_WALL_TOP);
   });
 
   it('produces a unit direction vector', () => {
