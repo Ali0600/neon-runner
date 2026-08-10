@@ -12,6 +12,40 @@
 
 ---
 
+## D34 — The SCOPE wall is a prop; the climb itself is scripted
+
+**Fork:** SCOPE needed a wall for the `wallrun` event. The lane is a straight
+line with no city in it — declutter hides the buildings there anyway — so the
+wall had to come from somewhere.
+
+- *Real geometry the runner collides with:* consistent with follow view, but the
+  runner's lane position is an **integration**, not a closed form. A wall placed
+  from sim time could never line up with where the runner actually is, and a
+  wall placed from the runner's position would slide along ahead of it during the
+  run-up. Neither is stationary at the moment it matters.
+- *Script the climb, draw a prop:* `driveCommand` publishes `climb`, `runner.js`
+  supplies a synthetic `wallTop` from it, and the mesh is drawn where that climb
+  is happening.
+
+**Chosen:** the prop. Its position is a pure function of `runner.position`,
+exactly like `scopeCamera`'s centreline, so it freezes and scrubs with everything
+else. The synthetic wall also stops existing above its roofline — the same rule
+`nearestFace` applies to a real building — so the crest fires identically in both
+views rather than through a second code path.
+
+Two things only the rendered frame could have told us:
+
+- **A slab is edge-on in SCOPE.** The camera looks straight down −Z, so the face
+  the runner climbs is a one-pixel sliver. The wall is deliberately *deep along
+  the lane* instead, because its cross-section is the only thing on screen.
+- **Centred on the runner's own z, half the block sits between the camera and the
+  runner** and hides the entire effect behind a black rectangle. It is offset
+  entirely behind them.
+
+**Status of alternatives:** real collidable geometry in the lane — `rejected —
+the runner's lane position is integrated, so nothing placed from sim time can
+line up with it`.
+
 ## D33 — Space is one verb, and the wall decides what it means
 
 **Fork:** *Second Son* has no wall-run button — holding the Light Speed dash makes

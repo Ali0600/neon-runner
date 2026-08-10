@@ -97,12 +97,19 @@ export function createGui(params, apply, stats, onTrigger, onStep) {
   scope.add(params, 'scopeTurn').name('· turns');
   const sprintPulseCtrl = scope.add(params, 'scopeSprint').name('· sprint pulses');
   const stopCtrl = scope.add(params, 'scopeStop').name('· stops');
+  scope.add(params, 'scopeJump').name('· jumps');
+  // The lane grows a wall for this one and the camera follows the climb, so it
+  // is the only event that changes what the view itself is doing.
+  scope.add(params, 'scopeWallrun').name('· wall runs');
   scope.add(params, 'scopeTurnAmplitude', 0, 8, 0.25).name('turn amplitude');
   scope.add(params, 'scopeLaneHalf', 100, 20000, 100).name('lane half-length');
   scope.add(params, 'scopeBackdrop').name('keep backdrop').onChange(on);
   scope.add(params, 'scopeRuler').name('ruler');
   scope.add(params, 'scopeReadouts').name('readouts');
   scope.add(params, 'scopeReadbackHz', [1, 2, 4, 8]).name('readback Hz (gpgpu)');
+  scope
+    .add(params, 'scopeTriggerKind', ['turn', 'sprint', 'stop', 'jump', 'wallrun'])
+    .name('trigger kind');
   scope.add({ fire: () => onTrigger?.() }, 'fire').name('trigger event  [T]');
 
   // The time scale the scrub borrowed, so it can be handed back. A control that

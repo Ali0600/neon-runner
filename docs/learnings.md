@@ -330,3 +330,21 @@ correctly on its own. Only driving the real input path exposed it.
 **Takeaway:** compute a compound precondition once, above the branches, and let
 every branch use that single name. And test the negative case — the positive
 ("does grab a wall") passed throughout.
+
+## A screenshot of a hidden tab can capture a partial composite
+
+Driving frames with `__app.step()` in a tab that never runs `requestAnimationFrame`
+means the browser's compositor has no natural moment to grab a finished frame.
+A capture taken right after a single `step()` can come back part-rendered — here,
+the left third of the scene with the rest black — which reads exactly like
+geometry occluding everything.
+
+**Why it came up:** three rounds were spent hunting a non-existent occlusion bug.
+`gl.readPixels` at the runner's projected position returned a bright pixel the
+whole time: the scene was fine and the screenshot was not. Stepping several
+frames before capturing fixed it.
+
+**Takeaway:** when a screenshot disagrees with a pixel you can measure, believe
+the measurement. Render a few frames before capturing, and confirm a suspicious
+frame with `readPixels` at a projected world point before debugging what you
+think you see.

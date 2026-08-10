@@ -17,7 +17,9 @@ import { WALK_SPEED, SPRINT_SPEED } from '../constants.js';
 // Turn is the long one: lateral speed is capped at `speed * sin(MAX_LATERAL)`,
 // so tracking a sine of amplitude A needs `2*PI*A/T` of lateral budget. A short
 // turn simply saturates and the commanded amplitude becomes fiction.
-export const DEFAULT_DURATIONS = { turn: 3.2, sprint: 2.4, stop: 3.0 };
+// wallrun has to fit an approach, a climb to the lane wall's roofline, the
+// crest, and the fall back down — see SCOPE_WALL_TOP.
+export const DEFAULT_DURATIONS = { turn: 3.2, sprint: 2.4, stop: 3.0, jump: 1.8, wallrun: 4.2 };
 
 // Turns run faster than a cruise: a turn at walking pace has almost no lateral
 // budget, and direction changes matter most at speed anyway.
@@ -45,6 +47,10 @@ export function buildSchedule(cfg = {}) {
     cfg.sprint === false ? null : ['sprint', d.sprint],
     ['cruise', interval],
     cfg.stop === false ? null : ['stop', d.stop],
+    ['cruise', interval],
+    cfg.jump === false ? null : ['jump', d.jump],
+    ['cruise', interval],
+    cfg.wallrun === false ? null : ['wallrun', d.wallrun],
   ].filter(Boolean);
 
   const segments = [];
@@ -105,8 +111,14 @@ export function stopProfile(tNorm) {
  * raw heading accumulates drift and eventually walks out of the lane. Aiming at
  * an offset makes the lane self-centring.
  *
+ * `jump` and `climb` are the scripted equivalent of holding the jump key. They
+ * are LEVEL, not edge, signals — pure functions of tNorm, so they stay stateless
+ * and freeze correctly; the caller derives the press edge from them exactly as
+ * input.js derives one from a keydown.
+ *
  * @param {number} laneZ current lateral offset from the lane centreline
- * @returns {{ dirX: number, dirZ: number, speed: number, targetZ: number }}
+ * @returns {{ dirX:number, dirZ:number, speed:number, targetZ:number,
+ *            jump:boolean, climb:boolean }}
  */
 export function driveCommand(sample, cfg = {}, laneZ = 0) {
   const amplitude = cfg.turnAmplitude ?? 6;
@@ -115,6 +127,8 @@ export function driveCommand(sample, cfg = {}, laneZ = 0) {
 
   let targetZ = 0;
   let speed = walk;
+  let jump = false;
+  let climb = false;
 
   switch (sample.kind) {
     case 'turn': {
@@ -134,6 +148,25 @@ export function driveCommand(sample, cfg = {}, laneZ = 0) {
     case 'stop':
       speed = walk * stopProfile(sample.tNorm);
       break;
+    case 'jump':
+      // Half a sine, like `sprint` — enough horizontal speed that the arc
+      // travels across the frame instead of going straight up and back down in
+      // one place, while still meeting the neighbouring cruise segments at walk
+      // speed on both sides.
+      speed = walk + (sprint - walk) * 0.8 * Math.sin(sample.tNorm * Math.PI);
+      // Held over one stretch in the middle, not from the very start: the
+      // takeoff should happen once the run-up has actually built some speed.
+      // Released before the segment ends, so the next one cannot inherit a key
+      // that is still down.
+      jump = sample.tNorm >= 0.15 && sample.tNorm < 0.5;
+      break;
+    case 'wallrun':
+      speed = walk + (sprint - walk) * Math.sin(sample.tNorm * Math.PI);
+      // The window closes well before the runner lands again. Leaving it open
+      // would re-mount the wall the moment it touched down, giving two climbs
+      // in one segment instead of one clean pass to watch.
+      climb = sample.tNorm >= 0.22 && sample.tNorm < 0.55;
+      break;
     default:
       break;
   }
@@ -143,7 +176,7 @@ export function driveCommand(sample, cfg = {}, laneZ = 0) {
     Math.min(MAX_LATERAL, Math.atan2(targetZ - laneZ, LOOKAHEAD))
   );
 
-  return { dirX: Math.cos(heading), dirZ: Math.sin(heading), speed, targetZ };
+  return { dirX: Math.cos(heading), dirZ: Math.sin(heading), speed, targetZ, jump, climb };
 }
 
 export { LOOKAHEAD, MAX_LATERAL };

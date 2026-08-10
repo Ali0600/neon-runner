@@ -9,6 +9,8 @@ import { createCameraRig } from './camera.js';
 import { createScopeCamera } from './scope/scopeCamera.js';
 import { createDeclutter } from './scope/declutter.js';
 import { createRuler } from './scope/ruler.js';
+import { createLaneWall } from './scope/laneWall.js';
+import { DEFAULT_DURATIONS } from './scope/schedule.js';
 import { createReadouts } from './scope/readouts.js';
 import { createParticleSystem } from './particles/ParticleSystem.js';
 import { createGpuEngine } from './particles/GpuEngine.js';
@@ -57,6 +59,8 @@ const scopeCam = createScopeCamera(camera);
 const declutter = createDeclutter(scene);
 const ruler = createRuler(document.getElementById('scope-ruler'));
 scene.add(ruler.lines);
+const laneWall = createLaneWall();
+scene.add(laneWall.group);
 const readouts = createReadouts(document.getElementById('scope-readouts'));
 const post = createPost(renderer, scene, camera, params);
 
@@ -89,7 +93,12 @@ function applyParams() {
   onResize();
 }
 
-const fireScopeEvent = () => runner.triggerScopeEvent('turn', simTime, 3.2);
+const fireScopeEvent = () =>
+  runner.triggerScopeEvent(
+    params.scopeTriggerKind,
+    simTime,
+    DEFAULT_DURATIONS[params.scopeTriggerKind] ?? 3.2
+  );
 
 // Advance exactly one frame while paused. timeScale has to be forced, or
 // stepping at timeScale 0 would advance nothing and look broken.
@@ -166,7 +175,15 @@ function frame(dt) {
 
   if (params.scope) scopeCam.update(runner, params);
   else rig.update(dt, runner, input);
-  ruler.update(activeCamera(), params, scopeCam.centerX, params.scopeViewHeight, scopeCam.aspect);
+  laneWall.update(runner, params);
+  ruler.update(
+    activeCamera(),
+    params,
+    scopeCam.centerX,
+    params.scopeViewHeight,
+    scopeCam.aspect,
+    scopeCam.centerY
+  );
   // Before the emitter, so a collection burst this frame ships in the same
   // buffer upload as the runner's continuous emission.
   game.update(simDt, simTime, runner);

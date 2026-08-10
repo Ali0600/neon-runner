@@ -48,6 +48,15 @@ export const params = {
   scopeTurn: true,
   scopeSprint: true,
   scopeStop: true,
+  scopeJump: true,
+  // Which kind the T key and the fire button inject. It was hardwired to 'turn',
+  // which meant a newly added event could only be seen by waiting for the
+  // schedule to come round to it — in the one view built for watching a single
+  // transient in isolation.
+  scopeTriggerKind: 'turn',
+  // The lane grows a synthetic wall for this one, and the camera tracks height
+  // to follow the climb — see SCOPE_WALL_TOP.
+  scopeWallrun: true,
   // Kept within what the runner can physically track during a turn segment —
   // a larger value just saturates the steering and the number stops meaning
   // anything. See TURN_SPEED_MIX in scope/schedule.js.

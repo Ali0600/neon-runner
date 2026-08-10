@@ -3,7 +3,13 @@ import dissolveVert from './shaders/dissolve.vert.glsl?raw';
 import dissolveFrag from './shaders/dissolve.frag.glsl?raw';
 import { wrapLane, resolvePathMode } from './scope/lane.js';
 import { buildSchedule, sampleSchedule, driveCommand } from './scope/schedule.js';
-import { WALK_SPEED, SPRINT_SPEED, WALL_REACH, CREST_INSET } from './constants.js';
+import {
+  WALK_SPEED,
+  SPRINT_SPEED,
+  WALL_REACH,
+  CREST_INSET,
+  SCOPE_WALL_TOP,
+} from './constants.js';
 import { resolveTargetSpeed } from './speed.js';
 import { slideXZ, nearestFace, groundHeightAt } from './city.js';
 import { stepVertical, initialVertical } from './vertical.js';
@@ -12,6 +18,12 @@ const ACCEL = 9.0; // response rate toward target velocity
 const BOUND = 180; // keep the runner inside the ground plane
 const STRIDE = 1.35; // world units per half stride
 const BODY_RADIUS = 0.45; // collision footprint, a little wider than the torso
+
+// Cache key for the scope schedule. Derived from every flag buildSchedule reads,
+// in one place: a key that misses a flag leaves the old schedule in place, so
+// the new checkbox silently does nothing.
+const scheduleKey = (p) =>
+  [p.scopeInterval, p.scopeTurn, p.scopeSprint, p.scopeStop, p.scopeJump, p.scopeWallrun].join('|');
 
 // Scratch — the animate loop must not allocate.
 const _target = new THREE.Vector3();
@@ -177,22 +189,27 @@ export function createRunner(params, city = []) {
     // Speed requested by the active path driver, if it has an opinion. Resolved
     // against the hold and the sprint flag once, after the branches below.
     let commandSpeed;
+    // Scripted stand-ins for the jump key and for a wall being in reach. Both
+    // stay false outside scope, where the real input and the real city answer.
+    let scopeJumpHeld = false;
+    let scopeClimb = false;
 
     if (mode === 'scope') {
       // Straight lane with scripted transients. The schedule is a pure function
       // of sim time, so it freezes with everything else at timeScale 0.
       if (
         !runner._schedule ||
-        runner._scheduleKey !==
-          `${params.scopeInterval}|${params.scopeTurn}|${params.scopeSprint}|${params.scopeStop}`
+        runner._scheduleKey !== scheduleKey(params)
       ) {
         runner._schedule = buildSchedule({
           interval: params.scopeInterval,
           turn: params.scopeTurn,
           sprint: params.scopeSprint,
           stop: params.scopeStop,
+          jump: params.scopeJump,
+          wallrun: params.scopeWallrun,
         });
-        runner._scheduleKey = `${params.scopeInterval}|${params.scopeTurn}|${params.scopeSprint}|${params.scopeStop}`;
+        runner._scheduleKey = scheduleKey(params);
       }
 
       // A manual trigger overrides the schedule for one event's duration.
@@ -208,6 +225,8 @@ export function createRunner(params, city = []) {
       const cmd = driveCommand(sample, { turnAmplitude: params.scopeTurnAmplitude }, group.position.z);
       _target.set(cmd.dirX, 0, cmd.dirZ);
       commandSpeed = cmd.speed;
+      scopeClimb = !!cmd.climb;
+      scopeJumpHeld = !!cmd.jump || scopeClimb;
       mx = 0;
       my = 0;
     } else if (params.autopilot) {
@@ -291,12 +310,32 @@ export function createRunner(params, city = []) {
     const supportY = inScope ? 0 : groundHeightAt(city, group.position.x, group.position.z);
     if (face) runner.wallNormal = face;
 
+    // In scope the lane wall is scripted rather than found: it exists exactly
+    // while the schedule says so, and stops existing above its roofline — the
+    // same rule nearestFace applies to a real building, so the crest fires
+    // identically in both.
+    let wallTop;
+    if (inScope) {
+      wallTop = scopeClimb && group.position.y < SCOPE_WALL_TOP ? SCOPE_WALL_TOP : null;
+      // The lane runs toward +x, so the wall faces back down it.
+      if (wallTop !== null) runner.wallNormal = { nx: -1, nz: 0, top: SCOPE_WALL_TOP, dist: 0 };
+    } else {
+      wallTop = face ? face.top : null;
+    }
+
+    // The schedule publishes a HELD signal, so the press edge is derived here —
+    // exactly as input.js derives one from a keydown. Without an edge the ground
+    // branch never jumps, since a held key alone deliberately does not bounce.
+    const jumpHeld = inScope ? scopeJumpHeld : !!input.jump;
+    const jumpPressed = inScope ? scopeJumpHeld && !runner._scopeJumpPrev : !!input.jumpPressed;
+    runner._scopeJumpPrev = scopeJumpHeld;
+
     const v = stepVertical(runner.vertical, {
       simDt,
-      jumpHeld: !!input.jump,
-      jumpPressed: !!input.jumpPressed,
+      jumpHeld,
+      jumpPressed,
       supportY,
-      wallTop: face ? face.top : null,
+      wallTop,
       groundSpeed,
     });
     runner.vertical = v;
@@ -311,7 +350,9 @@ export function createRunner(params, city = []) {
       runner.velocity.z = 0;
     }
 
-    if (v.event === 'crest' && runner.wallNormal) {
+    // Skipped in scope: there is no roof to land on there, and nudging the
+    // runner sideways would shift it off the lane centreline the turns steer to.
+    if (v.event === 'crest' && runner.wallNormal && !inScope) {
       // Step over the lip. The climb runs at BODY_RADIUS OUTSIDE the face, so
       // without this the runner tops out still beyond the footprint, finds no
       // roof beneath it, and drops straight back down the building it climbed.

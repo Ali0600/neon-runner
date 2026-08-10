@@ -8,7 +8,7 @@ imported with `?raw`.
 
 ```
 npm run dev      # http://localhost:5173
-npm test         # vitest, 173 tests
+npm test         # vitest, 179 tests
 npm run build    # production build
 ```
 
