@@ -123,6 +123,7 @@ Merges to `main` deploy publicly to https://ali0600.github.io/neon-runner/.
 
 ## Docs that ship with the change
 
-`docs/DECISIONS.md` (D1–D29) records design forks, the alternatives rejected and why, and
-a backlog of ones still worth trying. `docs/learnings.md` holds transferable concepts.
-Update both in the same PR as the work.
+`docs/DECISIONS.md` (D1–D34) records design forks, the alternatives rejected and why, and
+a backlog of ones still worth trying — the entries are newest-first below the backlog.
+`docs/learnings.md` holds transferable concepts. Update both in the same PR as the work,
+not as a later cleanup.
