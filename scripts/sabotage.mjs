@@ -258,11 +258,25 @@ const CASES = [
     expect: 'is full at capture and zero at the end of the fade',
   },
   {
-    name: 'afterimages: erode ghosts with the live body cap (leaves sparkles)',
+    name: 'afterimages: a fade that stops short of full dissolution',
     file: 'src/afterimages/logic.js',
-    find: '  return FULL_EROSION + (live - FULL_EROSION) * strength;',
-    repl: '  return live + (1 - strength) * 0.95;',
+    find: '  return GHOST_FRESH_EROSION + (FULL_EROSION - GHOST_FRESH_EROSION) * t * t;',
+    repl: '  return GHOST_FRESH_EROSION + (1.2 - GHOST_FRESH_EROSION) * t * t;',
     expect: 'erodes past the noise ceiling at zero strength',
+  },
+  {
+    name: 'afterimages: born at the live body cap (legless ghosts)',
+    file: 'src/afterimages/logic.js',
+    find: 'export const GHOST_FRESH_EROSION = 0.12;',
+    repl: 'export const GHOST_FRESH_EROSION = 0.62;',
+    expect: 'leaves the figure nearly whole at full strength',
+  },
+  {
+    name: 'afterimages: erode linearly, so the legs go first',
+    file: 'src/afterimages/logic.js',
+    find: '  return GHOST_FRESH_EROSION + (FULL_EROSION - GHOST_FRESH_EROSION) * t * t;',
+    repl: '  return GHOST_FRESH_EROSION + (FULL_EROSION - GHOST_FRESH_EROSION) * t;',
+    expect: 'stays below half erosion through mid-life',
   },
 
   // --- src/particles/spawnComputation.js ---

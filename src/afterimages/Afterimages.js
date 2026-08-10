@@ -117,7 +117,9 @@ export function createAfterimages(params, runner) {
     u.uOrigin.value.copy(runner.position);
     u.uTime.value = simTime;
 
-    const rec = { t: simTime, dissolve: runner.dissolve, slot };
+    // Only the stamp and the slot: how eroded a ghost is depends on its age
+    // alone, not on the speed it was captured at.
+    const rec = { t: simTime, slot };
     slot.rec = rec;
     slot.mesh.visible = true;
     release(pushSnapshot(live, rec, params.ghostCount));
@@ -151,7 +153,7 @@ export function createAfterimages(params, runner) {
       const rec = live[i];
       const strength = ghostStrength(rec.t, simTime, fade);
       rec.slot.uniforms.uStrength.value = strength;
-      rec.slot.uniforms.uErosion.value = ghostErosion(rec.dissolve, strength);
+      rec.slot.uniforms.uErosion.value = ghostErosion(strength);
       rec.slot.mesh.visible = strength > 0;
     }
     afterimages.alive = countAlive(live, simTime, fade);

@@ -9,18 +9,23 @@
 /** Hard ceiling on the ghost pool. Each live ghost is one draw call. */
 export const MAX_GHOSTS = 16;
 
-// How far the live body erodes at full sprint — dissolve.frag.glsl caps the
-// threshold at `uDissolve * 0.62`, deliberately short of full erosion so the
-// runner still reads as a figure. A fresh ghost has to match that exactly or it
-// would peel off the runner looking like a different body.
-export const LIVE_EROSION_CAP = 0.62;
+// How eroded a ghost is at the instant it is captured. Low, so a fresh
+// afterimage is a nearly complete figure.
+//
+// This deliberately does NOT match the live body's own cap (`uDissolve * 0.62`
+// in dissolve.frag.glsl), which was the original anchor — see D36's revision.
+// Erosion is height-biased and eats FEET FIRST, so a ghost starting at 0.62
+// loses most of its legs the moment it is born. The live runner survives that
+// because its plume and trail fill in the lower body; a ghost has neither and
+// reads as a floating torso.
+export const GHOST_FRESH_EROSION = 0.12;
 
 // The erosion value that discards every fragment. The shader's threshold is
 // `(n + heightBias) - erosion`, where the two-octave noise `n` weights to at
 // most 1.0 and heightBias tops out at 0.5 — so 1.5 erodes everything and this
-// clears it. Note the live cap can never reach here (0.62 at dissolve 1), which
-// is exactly why ghosts need their own erosion term rather than a pushed-up
-// uDissolve.
+// clears it. The live body's cap can never reach here (0.62 at dissolve 1),
+// which is exactly why ghosts need their own erosion term rather than a
+// pushed-up uDissolve.
 export const FULL_EROSION = 1.55;
 
 // --- mode gates ------------------------------------------------------------
@@ -86,15 +91,21 @@ export function ghostStrength(snapT, simTime, fadeSeconds) {
  * The erosion threshold offset for a ghost, computed here rather than in the
  * shader so the value under test and the value rendered are the same number.
  *
- * Lerps from the live body's cap at full strength to full dissolution at zero.
- * Interpolating (rather than adding a decay term) is what makes the expiry
- * guarantee independent of the dissolve it was captured at: a ghost snapshotted
- * at the emission gate has to vanish just as completely as one snapshotted at
- * top speed, or it leaves sparkles hanging in the air.
+ * Runs from a nearly whole figure at capture to past full dissolution at the end
+ * of the fade, and depends only on strength — the speed a ghost was captured at
+ * changes how bright it is, not how much of it exists, so every ghost vanishes
+ * as completely as every other one and none leaves sparkles hanging in the air.
+ *
+ * The curve is SQUARED in age rather than linear. Erosion is the destructive
+ * half of the fade and the alpha ramp is the gentle half; letting brightness
+ * lead means a ghost stays a readable figure for most of its life and comes
+ * apart near the end, instead of losing its legs immediately. At half strength
+ * a linear ramp would already be at 0.84 — past the point where the height bias
+ * has eaten the legs — where this is at 0.48.
  */
-export function ghostErosion(dissolve, strength) {
-  const live = dissolve * LIVE_EROSION_CAP;
-  return FULL_EROSION + (live - FULL_EROSION) * strength;
+export function ghostErosion(strength) {
+  const t = 1 - strength; // 0 at capture, 1 at the end of the fade
+  return GHOST_FRESH_EROSION + (FULL_EROSION - GHOST_FRESH_EROSION) * t * t;
 }
 
 // --- ring ------------------------------------------------------------------
