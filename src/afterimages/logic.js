@@ -9,16 +9,27 @@
 /** Hard ceiling on the ghost pool. Each live ghost is one draw call. */
 export const MAX_GHOSTS = 16;
 
-// How eroded a ghost is at the instant it is captured. Low, so a fresh
-// afterimage is a nearly complete figure.
+// How eroded a ghost is at the instant it is captured — HIGH, because that is
+// what makes a fresh afterimage look like a solid figure.
 //
-// This deliberately does NOT match the live body's own cap (`uDissolve * 0.62`
-// in dissolve.frag.glsl), which was the original anchor — see D36's revision.
-// Erosion is height-biased and eats FEET FIRST, so a ghost starting at 0.62
-// loses most of its legs the moment it is born. The live runner survives that
-// because its plume and trail fill in the lower body; a ghost has neither and
-// reads as a floating torso.
-export const GHOST_FRESH_EROSION = 0.12;
+// This reads backwards until you know what each phase renders as. The ghost mesh
+// is shaded by a fresnel term (`ghost.frag.glsl`), so an un-eroded ghost is
+// bright only where the surface turns away from the camera: a hollow outline,
+// not a body. The state that reads as a FULL figure is a ghost whose body has
+// already converted into the spark cloud — the sparks are the exact complement
+// of the surviving mesh (D38), and near 0.85 they have flown only ~0.1-0.3 world
+// units, so they still hold the body's shape while filling it in solid. The
+// height bias keeps a mesh remnant at the head and chest on top of that.
+//
+// So a low value is not "more complete", it is "more outline". Being born at
+// 0.85 puts the solid figure at the FRONT of the chain and leaves the whole fade
+// window to disperse it into dust.
+//
+// The old low value dates from before the sparks existed (#15), when the matter
+// erosion removed simply vanished and a high birth erosion really did mean a
+// legless ghost. Conservation changed what the number means; see D38's third
+// revision.
+export const GHOST_FRESH_EROSION = 0.85;
 
 // The erosion value that discards every fragment. The shader's threshold is
 // `(n + heightBias) - erosion`, where the two-octave noise `n` weights to at

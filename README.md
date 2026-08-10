@@ -39,13 +39,14 @@ Two things worth knowing, because neither is obvious from the panel:
   **afterimages**, or **both**. Afterimages leave a chain of the runner's own
   pose behind it — each one a real snapshot of the figure at that instant, the
   ten body matrices copied straight off the live body, so the lean, the bob and
-  the wall-climb orientation all come along for free. Each starts as a nearly
-  complete figure and does not fade where it stands: the matter it loses to
-  erosion is redrawn as particles flying outward, so a ghost comes apart into a
-  scattering cloud, feet first, cooling from cyan to magenta as it goes. The
-  burst peaks just behind the runner and thins to dust down the trail, because
-  the chain lays a ghost's life out along the ground — when it disintegrates is
-  also where. The
+  the wall-climb orientation all come along for free. Each is born already
+  half-converted into light: the matter erosion takes off it is redrawn as
+  particles flying outward, and while those particles have barely moved they
+  still hold the body's shape, so a fresh afterimage is a **solid, luminous
+  figure** rather than an empty silhouette. From there it comes apart — a
+  scattering cloud, feet first, cooling from cyan to magenta — and thins to dust
+  down the trail, because the chain lays a ghost's life out along the ground, so
+  when it disintegrates is also where. The
   sparks are the *complement* of the surviving silhouette — the same geometry
   drawn a second time as points, visible exactly where the mesh has given that
   matter up, so the conversion is exact rather than two effects timed to match.

@@ -60,6 +60,36 @@ brightness envelope along the chain went from peaking at the tail to
 `0.07 … 1.00 … 0.12` with the peak just behind the runner. Nothing about the full-body
 property changed — a ghost is still whole at capture; only WHEN it comes apart moved.
 
+**Revised again (#20): "full" is a property of the SHADER, not of how much data survives.**
+Two attempts read the user's word "full" as "not yet eroded" — #15 set the birth erosion
+low for that reason, and #18 (reverted by #19) held it there longer. Both made the chain
+*more* of what was being complained about. An annotated screenshot settled it: the arrow
+labelled *"a 'Full' body image"* pointed at a ghost around **0.8–0.9** erosion, and the
+one labelled *"isn't full"* at a **fresh** ghost.
+
+The reason is in `ghost.frag.glsl`: the mesh is shaded by a fresnel term
+(`pow(1 - |N·V|, 2.2)`), bright at grazing angles and near-zero face-on. An un-eroded
+ghost is therefore a **hollow outline** — a low birth erosion maximizes the emptiest-
+looking state. The figure that reads as solid is the one whose body has converted into
+the spark cloud: at 0.85 the sparks have flown only ~0.1–0.3 world units, so they still
+hold the body's shape while filling it in, and the height bias keeps a mesh remnant at
+the head and chest.
+
+`GHOST_FRESH_EROSION` is therefore **0.85**, not 0.12. Nothing else changed — the
+ease-out to `FULL_EROSION` still runs, so the whole fade window is now spent dispersing a
+solid figure into dust instead of first eroding an outline into one.
+
+The old low value was correct *for its time*: before #16 the eroded matter simply
+vanished, so a high birth erosion really did mean a legless ghost. Conservation changed
+what the number means, and the comment defending 0.12 outlived the mechanism it was
+reasoning about — which is why it survived three rounds of looking straight at it.
+
+**Rejected:** *raise `ghostIntensity` instead* — `rejected — brightness does not fill a
+hollow shell; the fresnel leaves the interior dark at any gain`. *Fade the fresnel in over
+life so a fresh mesh renders solid* — `deferred — worth trying` if the mesh silhouette
+ever needs to be legible at birth, but it fights the spark conversion for the same pixels.
+*Revisit hook:* the `fres` term in `src/shaders/ghost.frag.glsl`.
+
 **Status of alternatives:** `emitBurst` — `rejected — analytic-only, event-shaped, and
 CPU-injected; this needs continuous per-ghost emission in both engines`.
 

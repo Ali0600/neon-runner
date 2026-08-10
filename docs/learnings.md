@@ -532,3 +532,24 @@ already trusts.
 presence, reduce the frame to a profile and compare numbers. And on a WebGL
 canvas without `preserveDrawingBuffer`, decode `toDataURL` rather than calling
 `readPixels`.
+
+## A rendering phase's *appearance* is a property of the shader, not of how much data survives
+
+"More of the model is intact" and "it looks more complete" are different
+claims, and additive/fresnel shading can invert them.
+
+**Why it came up:** three rounds of tuning read the request "make the first
+afterimage full" as "erode it less", and each one made the complaint worse. The
+ghost mesh is shaded by a fresnel term, so an un-eroded shell is bright only at
+grazing angles — geometrically complete and visually a hollow outline. The state
+that reads as a solid figure is a *heavily* eroded one, because the eroded matter
+is redrawn as particles that have not yet flown far, and they fill the silhouette
+in. The fix was to raise the birth erosion sevenfold, the opposite of the
+intuition, and it was only settled by an annotated screenshot pointing at the two
+states side by side.
+
+**Takeaway:** before tuning a parameter toward a visual goal, ask what each value
+actually *draws* — read the fragment shader, not the data model. And when a
+comment justifies a constant ("low, so the figure is nearly complete"), check
+whether the mechanism it reasons about still exists: this one was written before
+the eroded matter was conserved as particles, and outlived the world it described.
