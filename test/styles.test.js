@@ -20,6 +20,8 @@ const ENGINE_KEYS = [
   'ghostFade',
   'ghostIntensity',
   'ghostMinDissolve',
+  'ghostSparkReach',
+  'ghostSparkSize',
   'limbStreaks',
   'limbStreakWidth',
 ];
@@ -74,6 +76,8 @@ describe('applyStylePreset', () => {
       ghostFade: 1.3,
       ghostIntensity: 1.1,
       ghostMinDissolve: 0.5,
+      ghostSparkReach: 2.2,
+      ghostSparkSize: 0.09,
       limbStreaks: false,
       limbStreakWidth: 0.8,
     };
@@ -105,6 +109,8 @@ describe('applyStylePreset', () => {
       ghostFade: 1.3,
       ghostIntensity: 1.1,
       ghostMinDissolve: 0.5,
+      ghostSparkReach: 2.2,
+      ghostSparkSize: 0.09,
       limbStreaks: false,
       limbStreakWidth: 0.8,
     };

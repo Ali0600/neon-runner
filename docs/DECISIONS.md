@@ -12,6 +12,43 @@
 
 ---
 
+## D38 — The eroded matter becomes the sparks
+
+**Fork:** an afterimage used to die by erosion eating the silhouette *inward*. It should
+scatter *outward*, as particles.
+
+- *Emit through `particles.emitBurst`:* reuses the existing engine. But bursts are
+  analytic-only, event-shaped and CPU-injected, and this has to be continuous, per-ghost,
+  engine-independent and exactly frozen at `timeScale = 0`.
+- *A second draw of the same body geometry as `THREE.Points`.*
+
+**Chosen:** the second draw. The mesh discards where
+`(noise + heightBias) - uErosion < 0`; the points draw the **complement** of that set —
+`excess = uErosion - (noise + heightBias) > 0` — which is precisely the matter the mesh
+has just given up. The two sets are exact opposites by construction, so nothing is drawn
+twice, nothing falls between them, and there is no second timing system to keep in step:
+one `uErosion` drives both. Flight distance is a function of `excess`, so the scatter
+inherits the dissolve's feet-first order for free, and the whole thing stays a closed form
+of values that are already pure `f(simTime)` — the freeze invariant needs no new argument.
+
+The points share the merged geometry AND the same uniforms object as the mesh, so the two
+cannot drift; `setSlotVisible` owns both, since debris outliving its body (or the reverse)
+is the obvious failure.
+
+**Two things the maths had to get right, both found only by rendering it:**
+
+- **Displacing along the surface normal preserves the shape.** `excess` varies smoothly
+  across the body, so neighbouring vertices move together and the cloud reads as an
+  inflated copy of the limb — ghost outlines, not debris. Each vertex needs its own
+  direction (full sphere, only biased outward) *and* its own speed; the per-particle speed
+  spread is what actually breaks the silhouette up.
+- **Sparks exist only in the back half of a ghost's life,** because nothing has eroded
+  before that. An age-proportional fade therefore dims them through exactly the window
+  worth watching. Age enters as a gate (`smoothstep(0.0, 0.22, uStrength)`), not a ramp.
+
+**Status of alternatives:** `emitBurst` — `rejected — analytic-only, event-shaped, and
+CPU-injected; this needs continuous per-ghost emission in both engines`.
+
 ## D37 — The limb streaks are four more trails, not one multi-source ribbon
 
 **Fork:** the sprint needs long light streaks off the hands and feet. The existing chest

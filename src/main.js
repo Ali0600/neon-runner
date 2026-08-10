@@ -132,6 +132,10 @@ function onResize() {
   scopeCam.resize(w, h, params);
   renderer.setSize(w, h);
   post.setSize(w, h);
+  // After setSize, so the sparks size themselves against the buffer that will
+  // actually be drawn into. applyParams ends here too, so a pixel-ratio change
+  // reaches them without a second call site.
+  afterimages.setViewport(renderer.domElement.height);
 }
 window.addEventListener('resize', onResize);
 
