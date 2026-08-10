@@ -6,10 +6,6 @@
   controls. *Revisit hook:* `src/post.js` is the only file that knows about the
   composer; its `{ render, setSize, applyParams }` shape is the seam.
 - **Heat-shimmer trail for smoke style** (D13) — needs a refraction post pass.
-- **`GHOST_HOLD` as a per-style param** (D38) — how much of the afterimage chain
-  stays a solid figure before it bursts. Currently one constant for both styles.
-  *Revisit hook:* `GHOST_HOLD` in `src/afterimages/logic.js`; it would need
-  `ENGINE_KEYS` and both fixtures in `test/styles.test.js`.
 - **Skinned/rigged runner** (D8) — the current figure is a joint hierarchy of
   capsules. *Revisit hook:* `createRunner` in `src/runner.js` builds the joints
   and drives them in one block.
@@ -63,32 +59,6 @@ and the gate is a plain ramp (`uStrength`) so the tail thins into dust. The meas
 brightness envelope along the chain went from peaking at the tail to
 `0.07 … 1.00 … 0.12` with the peak just behind the runner. Nothing about the full-body
 property changed — a ghost is still whole at capture; only WHEN it comes apart moved.
-
-**Revised again (#18): "whole at capture" is an instant, and an instant is not visible.**
-The #17 note above closes by saying a ghost is still whole at capture and only the timing
-moved. That is true and it was not enough: an ease-out is *fastest at the start*, so the
-freshest ghost began shedding on the very first frame of its life and no ghost in the
-chain was ever a complete figure. Fixing the tail-heavy burst had introduced the opposite
-defect in the same term — everything cloud, nothing solid — which is exactly the failure
-mode this file's #15 entry was written about, arrived at from the other direction.
-
-`ghostErosion` now HOLDS at `GHOST_FRESH_EROSION` for the first `GHOST_HOLD` (0.18) of a
-ghost's life, then eases out over the remainder, re-normalized so it still lands exactly
-on `FULL_EROSION`. Because the chain is a layout, a fraction of life is a fraction of
-trail: measured live, two to three complete figures sit nearest the runner (three at
-`holdSpeedValue` 16, two at lower speeds — the cadence is distance-gated, so faster
-running fits more captures inside a fixed *fractional* hold), and the burst starts
-immediately behind them. Measured erosion, newest ghost first:
-`0.12 0.12 0.12 0.354 0.605 0.826 1.018 1.181 1.314 1.429`. The brightness envelope's peak
-moved *further toward* the runner (band 10 of 12, from 6), which is the opposite of what a
-delayed burst predicts and follows from a held mesh concentrating light that scattered
-sparks spread thin.
-
-**Rejected:** *raising `ghostIntensity` so the freshest ghost merely reads brighter* —
-`rejected — brightness is not integrity; an eroded silhouette lit harder is still a
-silhouette with holes in it, and it would wash out the burst behind it`. *Making the hold
-a GUI param* — `deferred — worth trying if the solid-to-dissolving ratio ever needs to
-differ per style`. *Revisit hook:* `GHOST_HOLD` in `src/afterimages/logic.js`.
 
 **Status of alternatives:** `emitBurst` — `rejected — analytic-only, event-shaped, and
 CPU-injected; this needs continuous per-ghost emission in both engines`.

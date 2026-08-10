@@ -260,8 +260,8 @@ const CASES = [
   {
     name: 'afterimages: a fade that stops short of full dissolution',
     file: 'src/afterimages/logic.js',
-    find: '  return GHOST_FRESH_EROSION + (FULL_EROSION - GHOST_FRESH_EROSION) * u * (2 - u);',
-    repl: '  return GHOST_FRESH_EROSION + (1.2 - GHOST_FRESH_EROSION) * u * (2 - u);',
+    find: '  return GHOST_FRESH_EROSION + (FULL_EROSION - GHOST_FRESH_EROSION) * t * (2 - t);',
+    repl: '  return GHOST_FRESH_EROSION + (1.2 - GHOST_FRESH_EROSION) * t * (2 - t);',
     expect: 'erodes past the noise ceiling at zero strength',
   },
   {
@@ -274,23 +274,9 @@ const CASES = [
   {
     name: 'afterimages: flip the burst back to the tail of the trail',
     file: 'src/afterimages/logic.js',
-    find: '  return GHOST_FRESH_EROSION + (FULL_EROSION - GHOST_FRESH_EROSION) * u * (2 - u);',
-    repl: '  return GHOST_FRESH_EROSION + (FULL_EROSION - GHOST_FRESH_EROSION) * u * u;',
-    expect: 'starts shedding immediately after the hold',
-  },
-  {
-    name: 'afterimages: no hold — the first ghost is already coming apart',
-    file: 'src/afterimages/logic.js',
-    find: 'export const GHOST_HOLD = 0.18;',
-    repl: 'export const GHOST_HOLD = 0;',
-    expect: 'holds a whole figure just behind the runner',
-  },
-  {
-    name: 'afterimages: hold so long the burst is pushed to the tail',
-    file: 'src/afterimages/logic.js',
-    find: 'export const GHOST_HOLD = 0.18;',
-    repl: 'export const GHOST_HOLD = 0.9;',
-    expect: 'starts shedding immediately after the hold',
+    find: '  return GHOST_FRESH_EROSION + (FULL_EROSION - GHOST_FRESH_EROSION) * t * (2 - t);',
+    repl: '  return GHOST_FRESH_EROSION + (FULL_EROSION - GHOST_FRESH_EROSION) * t * t;',
+    expect: 'is already coming apart just behind the runner',
   },
 
   // --- src/particles/spawnComputation.js ---
