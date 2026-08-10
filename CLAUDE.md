@@ -25,10 +25,12 @@ Run the 12 with `sprintFx = 'both'`: that activates a strict superset of the ren
 (plume + afterimages + limb streaks + trail), so a freeze leak in any of them surfaces
 there, and the two single modes then need only one spot-check each to show the gates do
 not leak. **Step until the systems under test are actually live before freezing** —
-`__app.afterimages.alive >= 4` and `__app.limbStreaks.samples > 20`, bounded — since a
-frame hashed while the new system never ran proves nothing about it. Sprinting is not the
-default state either: set `holdSpeed` so the glow gate stays satisfied, or the scope
-scheduler cruises below it and you hash a chain of one.
+`__app.afterimages.alive >= 4`, `__app.limbStreaks.samples > 20`, and at least one ghost
+past `uErosion > 0.6` (the sparks only exist on eroded ghosts, so without that the frame
+contains none of them), all bounded — since a frame hashed while the new system never ran
+proves nothing about it. Sprinting is not the default state either: set `holdSpeed` so the
+glow gate stays satisfied, or the scope scheduler cruises below it and you hash a chain of
+one.
 
 **Plus three vertical states, which the 12 do not reach**: frozen mid-climb, frozen
 mid-fall, and frozen standing on a roof. Make the harness assert the runner is actually
