@@ -20,6 +20,16 @@ export const MAX_GHOSTS = 16;
 // reads as a floating torso.
 export const GHOST_FRESH_EROSION = 0.12;
 
+// The fraction of a ghost's life spent HELD as a whole figure before dissolution
+// begins. The chain lays a lifecycle out in space, so this is really a statement
+// about how much of the trail nearest the runner is solid: measured live, it buys
+// two complete figures at a jog and three at a sprint (captures are distance-gated,
+// so running faster fits more of them inside a fixed FRACTION of the fade).
+// Without it, an ease-out starts every ghost
+// shedding at the instant of capture and the chain never contains a solid one —
+// which is a different bug from the tail-heavy one it replaced, in the same term.
+export const GHOST_HOLD = 0.18;
+
 // The erosion value that discards every fragment. The shader's threshold is
 // `(n + heightBias) - erosion`, where the two-octave noise `n` weights to at
 // most 1.0 and heightBias tops out at 0.5 — so 1.5 erodes everything and this
@@ -96,22 +106,29 @@ export function ghostStrength(snapT, simTime, fadeSeconds) {
  * changes how bright it is, not how much of it exists, so every ghost vanishes
  * as completely as every other one and none leaves sparkles hanging in the air.
  *
- * The curve EASES OUT — fast at first, settling as it approaches full
- * dissolution. That is a statement about where the effect happens in space, not
- * just in time: the chain lays a ghost's lifecycle out along the ground behind
- * the runner, so the moment a ghost comes apart is also the PLACE it comes
- * apart. An ease-in (this was `t * t`) delays the burst to the end of life and
- * therefore parks it at the far end of the trail, which reads as the effect
- * starting behind the tail and travelling the wrong way. Easing out puts the
- * disintegration immediately behind the runner, where the energy belongs, and
- * leaves the tail as thin dispersing dust.
+ * Two phases, and the split is the whole point. The chain lays a ghost's
+ * lifecycle out along the ground behind the runner, so the moment a ghost comes
+ * apart is also the PLACE it comes apart — which makes this curve a layout of
+ * the trail, not just a schedule.
  *
- * A ghost is still whole at capture (0.12): only WHEN it comes apart moved, not
- * whether it starts complete.
+ * - For the first `GHOST_HOLD` of its life a ghost is HELD at its capture
+ *   erosion: a complete figure, the runner's own afterimage. Without this the
+ *   ease-out below starts eating the freshest ghost at the instant of capture
+ *   and the chain is all cloud and no body.
+ * - After that it EASES OUT — fast at first, settling as it approaches full
+ *   dissolution. An ease-in (this was `t * t`) delays the burst to the end of
+ *   life and therefore parks it at the far end of the trail, reading as an
+ *   effect that starts behind the tail and travels the wrong way.
+ *
+ * So: solid figures nearest the runner, the burst immediately behind them, thin
+ * dispersing dust at the tail.
  */
 export function ghostErosion(strength) {
   const t = 1 - strength; // 0 at capture, 1 at the end of the fade
-  return GHOST_FRESH_EROSION + (FULL_EROSION - GHOST_FRESH_EROSION) * t * (2 - t);
+  // Re-normalized onto the post-hold span, so the ease still lands exactly on
+  // FULL_EROSION at the end of the fade rather than being cut short by the hold.
+  const u = Math.max(0, (t - GHOST_HOLD) / (1 - GHOST_HOLD));
+  return GHOST_FRESH_EROSION + (FULL_EROSION - GHOST_FRESH_EROSION) * u * (2 - u);
 }
 
 // --- ring ------------------------------------------------------------------
