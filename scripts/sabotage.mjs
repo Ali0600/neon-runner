@@ -273,6 +273,59 @@ const CASES = [
     repl: '',
     expect: 'stops the continuous plume in the afterimages mode',
   },
+
+  // --- src/trail/Trail.js ---
+  {
+    name: 'trail: sample at the runner origin instead of chest height',
+    file: 'src/trail/Trail.js',
+    find: '      out.set(runner.position.x, runner.position.y + 1.0, runner.position.z);',
+    repl: '      out.set(runner.position.x, runner.position.y, runner.position.z);',
+    expect: 'samples at chest height',
+  },
+  {
+    name: 'trail: measure the step on the ground plane only',
+    file: 'src/trail/Trail.js',
+    find: '      (p.x - last.x) ** 2 + (p.y - last.y) ** 2 + (p.z - last.z) ** 2 > MIN_STEP * MIN_STEP;',
+    repl: '      (p.x - last.x) ** 2 + (p.z - last.z) ** 2 > MIN_STEP * MIN_STEP;',
+    expect: 'measures the step in 3D',
+  },
+  {
+    name: 'trail: emit regardless of the sprint glow',
+    file: 'src/trail/Trail.js',
+    find: '    if (moved && shouldEmit(runner)) {',
+    repl: '    if (moved) {',
+    expect: 'emits only while the runner is glowing',
+  },
+  {
+    name: 'trail: ignore the width hook and always use trailWidth',
+    file: 'src/trail/Trail.js',
+    find: '    material.uniforms.uWidth.value = getWidth();',
+    repl: '    material.uniforms.uWidth.value = params.trailWidth;',
+    expect: 'is scaled off the trail width',
+  },
+
+  // --- src/trail/LimbStreaks.js ---
+  {
+    name: 'streaks: every ribbon follows the same limb',
+    file: 'src/trail/LimbStreaks.js',
+    find: '        const p = runner.streakPoints[i];',
+    repl: '        const p = runner.streakPoints[0];',
+    expect: 'samples the limb tips',
+  },
+  {
+    name: 'streaks: emit in every sprint FX mode',
+    file: 'src/trail/LimbStreaks.js',
+    find: '        limbStreaksActive(params.sprintFx, params.limbStreaks) && runner.dissolve > 0.02,',
+    repl: '        runner.dissolve > 0.02,',
+    expect: 'emits only when the sprint FX mode wants ghosts',
+  },
+  {
+    name: 'streaks: clear only the first ribbon',
+    file: 'src/trail/LimbStreaks.js',
+    find: '      for (const r of ribbons) r.clear();',
+    repl: '      ribbons[0].clear();',
+    expect: 'clears every ribbon',
+  },
 ];
 
 // --- crash safety ----------------------------------------------------------

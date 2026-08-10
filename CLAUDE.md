@@ -8,9 +8,9 @@ imported with `?raw`.
 
 ```
 npm run dev      # http://localhost:5173
-npm test         # vitest, 179 tests
+npm test         # vitest, 222 tests
 npm run build    # production build
-npm run sabotage # mutation harness — proves the tests bite (~20s)
+npm run sabotage # mutation harness — proves the tests bite (~35s)
 ```
 
 ## The freeze invariant — a hard gate
@@ -20,6 +20,15 @@ and must differ once resumed.** This is the project's standing correctness check
 has caught several real defects. Re-verify it across **all 12 combinations** — 2 engines
 × 2 styles × (follow / scope-ortho / scope-persp) — after touching `runner.js`,
 `gui.js`, the camera, or any shader.
+
+Run the 12 with `sprintFx = 'both'`: that activates a strict superset of the renderers
+(plume + afterimages + limb streaks + trail), so a freeze leak in any of them surfaces
+there, and the two single modes then need only one spot-check each to show the gates do
+not leak. **Step until the systems under test are actually live before freezing** —
+`__app.afterimages.alive >= 4` and `__app.limbStreaks.samples > 20`, bounded — since a
+frame hashed while the new system never ran proves nothing about it. Sprinting is not the
+default state either: set `holdSpeed` so the glow gate stays satisfied, or the scope
+scheduler cruises below it and you hash a chain of one.
 
 **Plus three vertical states, which the 12 do not reach**: frozen mid-climb, frozen
 mid-fall, and frozen standing on a roof. Make the harness assert the runner is actually
@@ -84,7 +93,7 @@ believing the failure. That has been the actual cause more often than the code h
 **Pure logic lives in dependency-free modules** so it is unit-testable without a renderer:
 `scope/schedule.js`, `scope/lane.js`, `scope/rulerTicks.js`, `scope/statsMath.js`,
 `game/logic.js`, `speed.js`, `city.js`, `vertical.js`, `particles/ringRanges.js`,
-`particles/slotUv.js`. A module
+`particles/slotUv.js`, `afterimages/logic.js`. A module
 that imports `runner.js` transitively pulls in three and every `.glsl`, and will not load
 in plain node — that is why shared constants sit in `src/constants.js`.
 
@@ -111,7 +120,7 @@ behaviour before trusting it. When sabotaging a file to prove a test bites, chec
 before and after so the restore is provably clean, and never use `git checkout` to undo a
 sabotage on uncommitted work.
 
-`npm run sabotage` (`scripts/sabotage.mjs`) does that mechanically: 23 cases, each
+`npm run sabotage` (`scripts/sabotage.mjs`) does that mechanically: 37 cases, each
 reintroducing one defect and asserting the specific test written to guard it goes red.
 **Add a case whenever you add a guard**, and run it before opening a PR — it is not in CI
 because it runs the suite once per case.

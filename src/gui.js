@@ -95,6 +95,8 @@ export function createGui(params, apply, stats, onTrigger, onStep) {
     fx.add(params, 'ghostFade', 0.2, 3, 0.05).name('fade (s)').onChange(on),
     fx.add(params, 'ghostIntensity', 0.05, 2, 0.01).name('intensity').onChange(on),
     fx.add(params, 'ghostMinDissolve', 0, 1, 0.05).name('min sprint glow').onChange(on),
+    fx.add(params, 'limbStreaks').name('hand / foot streaks').onChange(on),
+    fx.add(params, 'limbStreakWidth', 0.1, 1.5, 0.05).name('streak width').onChange(on),
   ];
   fx.close();
 
