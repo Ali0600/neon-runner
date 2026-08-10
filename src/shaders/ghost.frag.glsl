@@ -17,9 +17,11 @@ void main() {
   float n = dissolveNoise(vLocal, uTime);
 
   // The one difference from the live body: the erosion offset arrives as a
-  // uniform rather than being derived from a dissolve here. It lerps from the
-  // body's own cap up past this sum's ceiling of 1.5, which is what lets a ghost
-  // reach nothing at all — the live cap tops out at 0.62 and never could.
+  // uniform rather than being derived from a dissolve here. It runs from nearly
+  // nothing at capture — this sum is height-biased and eats feet first, so a
+  // ghost that started where the live body sits would be born legless — up past
+  // this sum's ceiling of 1.5, which is what lets a ghost reach nothing at all.
+  // The live cap tops out at 0.62 and never could.
   float threshold = (n + dissolveHeightBias(vLocal.y)) - uErosion;
 
   if (threshold < 0.0) discard;

@@ -420,3 +420,37 @@ to both `col` and the alpha made the chain look short and stubby against a
 strength curve that was provably linear.
 
 **Takeaway:** pick one channel for an additive fade and let the others stay pure.
+
+## Matching a neighbour's constant only works if it sits in the same context
+
+A value copied from a related system carries that system's surroundings with it as
+an unstated assumption. Afterimages were anchored to the live runner's own
+erosion — "a fresh ghost should match the body it peeled off" — which sounds
+obviously right and shipped looking wrong.
+
+**Why it came up:** the erosion is height-biased and eats feet-first, so at full
+sprint the live body is already ~60% gone below the knees. The runner reads fine
+anyway because its plume and trail fill in the lower half. A ghost has no plume,
+so the identical number left it a floating torso. The two looked like the same
+object to reason about; only one of them had something covering its legs.
+
+**Takeaway:** before copying a constant from a neighbouring effect, ask what else
+is on screen that makes it work there. If the new context is missing any of it,
+the shared number is a coincidence, not a rule — and re-derive it from what the
+new thing has to look like on its own.
+
+## Split a two-channel fade so the destructive half arrives last
+
+When something fades by two mechanisms at once — brightness and disintegration,
+opacity and blur, volume and filtering — running both linearly makes the subject
+unreadable halfway through its life. Ramping the destructive channel as the
+square of age keeps it whole while the gentle channel does the early work.
+
+**Why it came up:** ghosts fade by alpha *and* by erosion. Linear erosion put a
+mid-life ghost at 0.84 of full dissolution, past the point where the height bias
+eats the legs, so the chain lost its shape immediately. Squaring it puts the same
+ghost at 0.48 — still a figure — and the chain now reads as figures that dim and
+then come apart, which is what the reference footage shows.
+
+**Takeaway:** identify which channel destroys legibility and delay it; a fade is
+usually more readable when the channels are not on the same curve.

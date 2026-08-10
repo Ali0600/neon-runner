@@ -70,10 +70,28 @@ consumer ever appears. *Revisit hook:* the gait block in `src/runner.js`, and
 
 **Why ghosts carry their own erosion uniform.** The body's fragment shader caps erosion at
 `uDissolve * 0.62`, deliberately short of full — so a ghost driven by a pushed-up
-`uDissolve` could never reach nothing. `ghostErosion` instead lerps from that same cap at
-full strength to past the shader's `noise + heightBias` ceiling of 1.5 at zero, which
-makes "a fresh ghost matches the body it peeled off" and "an expired ghost leaves nothing"
-both exact, and independent of the dissolve it was captured at.
+`uDissolve` could never reach nothing. `ghostErosion` supplies its own value, running up
+past the shader's `noise + heightBias` ceiling of 1.5 so an expired ghost leaves nothing.
+
+**Revised (same day, on user feedback): a fresh ghost is NOT anchored to the live cap.**
+The original rule was "a fresh ghost matches the body it peeled off", i.e. it started at
+`dissolve * 0.62`. That was wrong, and it shipped looking wrong: erosion is height-biased
+and eats **feet first**, so at full sprint a newborn ghost had already lost most of its
+legs and the chain read as a row of floating torsos. The live runner survives the same
+erosion only because its plume and trail fill in the lower body — a ghost has neither.
+Fresh erosion is now a flat `GHOST_FRESH_EROSION = 0.12` and the curve depends on **age
+alone**, not on capture speed: how fast you were going changes how *bright* a ghost is,
+not how much of it exists.
+
+The ramp is also **squared in age** rather than linear. Alpha is the gentle half of the
+fade and erosion the destructive half; letting brightness lead keeps a ghost a readable
+figure for most of its life and brings it apart near the end. At half strength a linear
+ramp sits at 0.84 — already past where the height bias eats the legs — where the squared
+one is at 0.48.
+
+The general lesson, recorded in `docs/learnings.md`: matching an effect to a neighbouring
+one is only right if they sit in the same context. The body and its ghosts looked like the
+same object to reason about and were not, because only one of them had a plume.
 
 ## D35 — Sprint FX is a mode, and turning the plume off means not spawning it
 

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   MAX_GHOSTS,
-  LIVE_EROSION_CAP,
+  GHOST_FRESH_EROSION,
   FULL_EROSION,
   plumeEnabled,
   emitsGhosts,
@@ -121,33 +121,43 @@ describe('ghostStrength', () => {
 });
 
 describe('ghostErosion', () => {
-  it('matches the live body at full strength', () => {
-    // A ghost peels off the runner; if the fresh one eroded differently it would
-    // read as a second, differently-built figure.
-    for (const d of [0.35, 0.6, 1]) {
-      expect(ghostErosion(d, 1)).toBeCloseTo(d * LIVE_EROSION_CAP, 12);
-    }
+  it('leaves the figure nearly whole at full strength', () => {
+    // The reported bug: erosion is height-biased and eats FEET first, so a fresh
+    // ghost starting anywhere near the live body's 0.62 cap is born without
+    // legs and the chain reads as floating torsos. It has to start near zero.
+    expect(ghostErosion(1)).toBeCloseTo(GHOST_FRESH_EROSION, 12);
+    expect(ghostErosion(1)).toBeLessThan(0.2);
   });
 
-  it('erodes past the noise ceiling at zero strength, whatever it was captured at', () => {
+  it('erodes past the noise ceiling at zero strength', () => {
     // The shader discards where (noise + heightBias) < erosion, and that sum
     // cannot exceed 1.5 — so an expired ghost must clear 1.5 or it leaves
-    // sparkles hanging in the air. Independent of dissolve on purpose: a ghost
-    // captured at the emission gate has to vanish as completely as one captured
-    // at top speed.
-    for (const d of [0, 0.35, 1]) {
-      expect(ghostErosion(d, 0)).toBeGreaterThanOrEqual(1.5);
-    }
+    // sparkles hanging in the air.
+    expect(ghostErosion(0)).toBeGreaterThanOrEqual(1.5);
     expect(FULL_EROSION).toBeGreaterThanOrEqual(1.5);
+  });
+
+  it('stays below half erosion through mid-life', () => {
+    // Pins the curve's shape, not just its endpoints: the alpha ramp is the
+    // gentle half of the fade and erosion is the destructive half, so a ghost
+    // should still be a readable figure halfway through. A linear ramp is at
+    // 0.84 here — already past where the height bias eats the legs.
+    expect(ghostErosion(0.5)).toBeLessThan(0.62);
   });
 
   it('rises monotonically as a ghost fades', () => {
     let prev = -Infinity;
     for (let s = 1; s >= 0; s -= 0.05) {
-      const e = ghostErosion(0.8, s);
+      const e = ghostErosion(s);
       expect(e).toBeGreaterThanOrEqual(prev);
       prev = e;
     }
+  });
+
+  it('depends on age alone, so every ghost vanishes as completely', () => {
+    // Guards the guard: erosion used to take the capture-time dissolve, and a
+    // slow-captured ghost then expired short of full dissolution.
+    expect(ghostErosion.length).toBe(1);
   });
 });
 
