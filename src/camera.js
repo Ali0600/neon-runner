@@ -8,6 +8,20 @@ const _look = new THREE.Vector3();
 // clips open and shows the building's interior.
 const CAM_RADIUS = 0.6;
 
+// --- gliding ---------------------------------------------------------------
+// The glide fires a plume straight DOWN, which at the default pitch the camera
+// looks edge-on through: the figure sits inside its own jet and the whole thing
+// renders as one white blob. Swinging the rig up and back separates them — you
+// see the runner from above with the light billowing out beneath.
+//
+// Applied to the DESIRED point rather than to the camera, like the sightline
+// pull-in below and for the same reason: a stepped target rides the existing
+// easing and its epsilon snap, so this adds no new eased state and the freeze
+// invariant needs no new argument. A frozen runner holds a frozen mode, which
+// holds a frozen target.
+const GLIDE_CAM_PITCH = 0.55; // radians on top of the base 0.32 — ~50° look-down
+const GLIDE_CAM_DIST = 2.5; // world units back, so the widened jet stays in frame
+
 export function createCameraRig(camera, city = []) {
   const rig = {
     camera,
@@ -38,11 +52,15 @@ export function createCameraRig(camera, city = []) {
       else rig.yaw += delta * (1 - Math.exp(-2.6 * dt));
       baseYaw = rig.yaw;
     }
+    const gliding = runner.vertical?.mode === 'glide';
+
     const yaw = baseYaw + input.orbitYaw;
-    const pitch = 0.32 + input.orbitPitch;
+    // Both terms stay ADDITIVE with the orbit input, so dragging still works
+    // mid-glide. A view the user cannot move is worse than the one it replaced.
+    const pitch = 0.32 + input.orbitPitch + (gliding ? GLIDE_CAM_PITCH : 0);
 
     // Sprinting pushes the camera back and drops it — speed reads as distance.
-    const dist = rig.distance + runner.dissolve * 2.2;
+    const dist = rig.distance + runner.dissolve * 2.2 + (gliding ? GLIDE_CAM_DIST : 0);
     const horiz = Math.cos(pitch) * dist;
 
     _desired.set(

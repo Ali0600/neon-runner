@@ -8,7 +8,7 @@ imported with `?raw`.
 
 ```
 npm run dev      # http://localhost:5173
-npm test         # vitest, 245 tests
+npm test         # vitest, 252 tests
 npm run build    # production build
 npm run sabotage # mutation harness — proves the tests bite (~35s)
 ```
@@ -109,6 +109,12 @@ believing the failure. That has been the actual cause more often than the code h
 
 ## Conventions
 
+**The follow rig is unit-testable too**, even though it imports three: `test/cameraRig.test.js`
+builds a real `PerspectiveCamera` and `createCameraRig(camera, [])` under vitest, feeds a
+fake runner, and steps until the position stops changing (bounded). Pass an empty city so
+the sightline pull-in cannot confound the framing, and hold `groundSpeed` at 0 — above 1.0
+the rig re-aims its yaw, and a test that lets it swing is measuring the wrong thing.
+
 **Pure logic lives in dependency-free modules** so it is unit-testable without a renderer:
 `scope/schedule.js`, `scope/lane.js`, `scope/rulerTicks.js`, `scope/statsMath.js`,
 `game/logic.js`, `speed.js`, `city.js`, `vertical.js`, `particles/ringRanges.js`,
@@ -139,7 +145,7 @@ behaviour before trusting it. When sabotaging a file to prove a test bites, chec
 before and after so the restore is provably clean, and never use `git checkout` to undo a
 sabotage on uncommitted work.
 
-`npm run sabotage` (`scripts/sabotage.mjs`) does that mechanically: 47 cases, each
+`npm run sabotage` (`scripts/sabotage.mjs`) does that mechanically: 52 cases, each
 reintroducing one defect and asserting the specific test written to guard it goes red.
 **Add a case whenever you add a guard**, and run it before opening a PR — it is not in CI
 because it runs the suite once per case.
