@@ -74,7 +74,11 @@ Two things worth knowing, because neither is obvious from the panel:
   — and a wall in reach always outranks it, because arriving at a wall from a
   descent is how you reach one. The jet reuses the wall-run's aiming seam rather
   than adding a second one, and the emission holds a floor while gliding, so the
-  plume cannot thin out over the seconds it is meant to be holding you up.
+  plume cannot thin out over the seconds it is meant to be holding you up. The
+  camera **swings up and back** for the duration, to roughly a 37° look-down:
+  at the normal follow height you stare edge-on through the jet and the whole
+  thing reads as one white blob, where from above the figure and the light
+  billowing beneath it are two separate things. Drag still works while it does.
 - **A solid city.** 70 instanced buildings — 8 towers inside the play field and
   a 62-building skyline beyond — laid out from a seeded PRNG so the world is
   identical every load, and rendered in one draw call as dark slabs with lit

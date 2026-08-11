@@ -131,6 +131,43 @@ const CASES = [
     expect: 'leaves every pickup reachable',
   },
 
+  // --- src/camera.js -------------------------------------------------------
+  {
+    name: 'camera: stop lifting the rig while gliding',
+    file: 'src/camera.js',
+    find: "    const gliding = runner.vertical?.mode === 'glide';",
+    repl: '    const gliding = false;',
+    expect: 'looks down more steeply while gliding',
+  },
+  {
+    name: 'camera: lift the glide view without angling it down',
+    file: 'src/camera.js',
+    find: '    const pitch = 0.32 + input.orbitPitch + (gliding ? GLIDE_CAM_PITCH : 0);',
+    repl: '    const pitch = 0.32 + input.orbitPitch;',
+    expect: 'looks down more steeply while gliding',
+  },
+  {
+    name: 'camera: drop the glide pull-back',
+    file: 'src/camera.js',
+    find: '    const dist = rig.distance + runner.dissolve * 2.2 + (gliding ? GLIDE_CAM_DIST : 0);',
+    repl: '    const dist = rig.distance + runner.dissolve * 2.2;',
+    expect: 'backs off far enough to keep the widened jet in frame',
+  },
+  {
+    name: 'camera: apply the glide pitch instead of adding to the orbit drag',
+    file: 'src/camera.js',
+    find: '    const pitch = 0.32 + input.orbitPitch + (gliding ? GLIDE_CAM_PITCH : 0);',
+    repl: '    const pitch = gliding ? 0.32 + GLIDE_CAM_PITCH : 0.32 + input.orbitPitch;',
+    expect: 'still responds to orbit drag while gliding',
+  },
+  {
+    name: 'camera: lift the grounded view too',
+    file: 'src/camera.js',
+    find: "    const gliding = runner.vertical?.mode === 'glide';",
+    repl: '    const gliding = true;',
+    expect: 'leaves the ground view untouched',
+  },
+
   // --- src/vertical.js -----------------------------------------------------
   {
     name: 'glide: drop the descending gate (glides on the way up)',
