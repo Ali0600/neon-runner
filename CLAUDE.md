@@ -8,7 +8,7 @@ imported with `?raw`.
 
 ```
 npm run dev      # http://localhost:5173
-npm test         # vitest, 225 tests
+npm test         # vitest, 245 tests
 npm run build    # production build
 npm run sabotage # mutation harness — proves the tests bite (~35s)
 ```
@@ -32,10 +32,13 @@ proves nothing about it. Sprinting is not the default state either: set `holdSpe
 glow gate stays satisfied, or the scope scheduler cruises below it and you hash a chain of
 one.
 
-**Plus three vertical states, which the 12 do not reach**: frozen mid-climb, frozen
-mid-fall, and frozen standing on a roof. Make the harness assert the runner is actually
-in the mode it claims before hashing — a setup that quietly lands on the roof reports a
-pass for a mid-air case it never ran.
+**Plus four vertical states, which the 12 do not reach**: frozen mid-climb, mid-fall,
+mid-glide, and standing on a roof. Make the harness assert the runner is actually in the
+mode it claims before hashing — a setup that quietly lands on the roof reports a pass for
+a mid-air case it never ran, and a glide case that never engaged is just another mid-fall.
+Drive the vertical states through the real input hooks (`__app.input.press('jump')` /
+`.release('jump')`); writing `input.jumpHeld` directly does nothing, because `update()`
+recomputes the whole input state from the key set every frame.
 
 The follow rig eases on real time and only snaps below its epsilon, so a paused frame is
 not stable immediately: `rig.yaw` decays at 2.6/s and needs ~200 frames. Settle by
@@ -136,7 +139,7 @@ behaviour before trusting it. When sabotaging a file to prove a test bites, chec
 before and after so the restore is provably clean, and never use `git checkout` to undo a
 sabotage on uncommitted work.
 
-`npm run sabotage` (`scripts/sabotage.mjs`) does that mechanically: 40 cases, each
+`npm run sabotage` (`scripts/sabotage.mjs`) does that mechanically: 47 cases, each
 reintroducing one defect and asserting the specific test written to guard it goes red.
 **Add a case whenever you add a guard**, and run it before opening a PR — it is not in CI
 because it runs the suite once per case.

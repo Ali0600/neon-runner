@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { emissionRate, takeSpawnCount } from '../src/particles/spawnComputation.js';
+import {
+  emissionRate,
+  takeSpawnCount,
+  fillSpawnContext,
+  computeSpawn,
+} from '../src/particles/spawnComputation.js';
 
 const PARAMS = { walkRate: 200, sprintRate: 2000 };
 const RUNNER = { speed: 12, dissolve: 0.8 };
@@ -28,6 +33,85 @@ describe('emissionRate', () => {
     const fast = emissionRate(p, { speed: 12, dissolve: 1 });
     expect(slow).toBeCloseTo(PARAMS.walkRate, 6);
     expect(fast).toBeCloseTo(PARAMS.sprintRate, 6);
+  });
+});
+
+describe('emissionRate — gliding', () => {
+  const gliding = (over = {}) => ({ speed: 12, dissolve: 0.8, vertical: { mode: 'glide' }, ...over });
+
+  it('holds a floor while gliding, however far the dissolve has decayed', () => {
+    // The rate normally follows the dissolve, which decays as the glide bleeds
+    // speed off — so without a floor the jet thins out over exactly the seconds
+    // it is meant to be holding the runner up.
+    const p = { ...PARAMS, sprintFx: 'plume' };
+    const decayed = emissionRate(p, gliding({ dissolve: 0 }));
+    expect(decayed).toBeGreaterThan(emissionRate(p, { speed: 12, dissolve: 0 }));
+    expect(decayed).toBeGreaterThanOrEqual(PARAMS.sprintRate * 0.5);
+  });
+
+  it('never lowers the rate a fast glide had already earned', () => {
+    // A floor, not a replacement: entering a glide at full tilt must not dim it.
+    const p = { ...PARAMS, sprintFx: 'plume' };
+    expect(emissionRate(p, gliding({ dissolve: 1 }))).toBeGreaterThanOrEqual(
+      emissionRate(p, { speed: 12, dissolve: 1 })
+    );
+  });
+
+  it('still respects the afterimages-only gate', () => {
+    // The mode gate outranks the floor: a glide must not resurrect the plume in
+    // the one mode that exists to stop it at the source.
+    expect(emissionRate({ ...PARAMS, sprintFx: 'afterimages' }, gliding())).toBe(0);
+  });
+});
+
+describe('computeSpawn — glide aims the jet down', () => {
+  const RNG = () => 0.5; // dead centre: no spread, so the aiming is what is left
+  const base = {
+    emitPoints: [{ x: 0, y: 1, z: 0 }],
+    position: { x: 0, y: 1, z: 0 },
+    prev: { x: 0, y: 1, z: 0 },
+    velocity: { x: 0, y: 0, z: 0 },
+    jitter: 0,
+    spread: 2,
+    rise: 1,
+    lifetime: 1,
+    rng: RNG,
+  };
+
+  const spawnFor = (vertical) => {
+    const ctx = fillSpawnContext({ ...base }, { ...base, vertical }, { spread: 2, riseBias: 1, lifetime: 1 }, base.prev);
+    // fillSpawnContext overwrites the emitter fields from the runner; restore
+    // the deterministic ones the assertions depend on.
+    Object.assign(ctx, base);
+    ctx.glide = vertical && vertical.mode === 'glide' ? 1 : 0;
+    ctx.climb = vertical && vertical.mode === 'wall' ? 1 : 0;
+    const s = computeSpawn(0, 1, ctx);
+    return { vx: s.vx, vy: s.vy, vz: s.vz };
+  };
+
+  it('sends the plume downward while gliding, not upward', () => {
+    const ground = spawnFor({ mode: 'air' });
+    const glide = spawnFor({ mode: 'glide' });
+    expect(glide.vy).toBeLessThan(0);
+    expect(glide.vy).toBeLessThan(ground.vy);
+  });
+
+  it('widens the horizontal spread so the jet billows', () => {
+    // Straight down with no lateral spread reads as a laser, not a hover.
+    // computeSpawn returns a shared scratch object, so each result has to be
+    // copied out before the next call overwrites it.
+    const ctx = { ...base, glide: 1, climb: 0, rng: () => 0.9 };
+    const lateralOf = (c) => {
+      const s = computeSpawn(0, 1, c);
+      return Math.hypot(s.vx, s.vz);
+    };
+    expect(lateralOf(ctx)).toBeGreaterThan(lateralOf({ ...ctx, glide: 0 }));
+  });
+
+  it('sets the glide flag from the vertical mode', () => {
+    const ctx = fillSpawnContext({}, { ...base, vertical: { mode: 'glide' } }, { spread: 2, riseBias: 1, lifetime: 1 }, base.prev);
+    expect(ctx.glide).toBe(1);
+    expect(fillSpawnContext({}, { ...base, vertical: { mode: 'air' } }, { spread: 2, riseBias: 1, lifetime: 1 }, base.prev).glide).toBe(0);
   });
 });
 

@@ -25,6 +25,20 @@ export const CREST_BOOST = 6.0; // upward pop on clearing the lip
 // inward travel or it tops out and drops straight back down the wall.
 export const CREST_INSET = 0.9;
 
+// --- glide -----------------------------------------------------------------
+// Hold the jump key while falling and the descent caps at a slow sink, so a
+// jump off a roof turns into a drift rather than a drop. Horizontal speed is
+// untouched — the glide trades fall speed for airtime, not for distance.
+
+// A seventh of GRAVITY's per-second pull, which is slow enough to read as
+// hovering while still visibly descending.
+export const GLIDE_SINK_SPEED = 3.5;
+// You must already be falling this fast to deploy. Without it the apex of a
+// jump — where vy passes through zero — would flicker in and out of the glide
+// on consecutive frames, which reads as the jump stuttering rather than as a
+// mode change.
+export const GLIDE_MIN_FALL_SPEED = 1.0;
+
 // Roofline of the synthetic wall SCOPE puts in the lane. Low enough that the
 // climb, the crest and the fall back down all fit inside one scheduled segment,
 // which is what makes the whole move inspectable in a single pass.
