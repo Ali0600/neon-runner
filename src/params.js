@@ -76,7 +76,10 @@ export const params = {
   ghostCount: 14, // ring size, hard-capped by MAX_GHOSTS
   ghostSpacing: 1.8, // world units between snapshots
   ghostFade: 1.4, // seconds from capture to fully dissolved
-  ghostIntensity: 0.7, // emissive gain, before the count normalization
+  // Emissive gain, before the count normalization. Held well below 1: additive
+  // shells stack, and once the chain blows out to white the figures merge into
+  // one bright smear and their shape stops reading.
+  ghostIntensity: 0.45,
   // Higher than the trail's 0.02 on purpose: afterimages belong to the sprint,
   // and ghosts emitted at a walk just crowd the runner.
   ghostMinDissolve: 0.35,
@@ -88,8 +91,14 @@ export const params = {
   // A ghost does not fade out where it stands — the matter it loses to erosion
   // is redrawn as particles flying outward, so the death reads as scattering
   // rather than as the silhouette being eaten inward.
-  ghostSparkReach: 0.8, // scales how far the debris travels as it ages
-  ghostSparkSize: 0.045, // spark diameter, in world units at any zoom
+  // Scales how far the debris travels as it ages. Deliberately short: the
+  // sparks ARE the figure now (a ghost is born mostly converted), so how far
+  // they fly is how much of the body's shape survives. Keep them close and the
+  // cloud's edge is the pose's outline; let them run and it is a bright blob.
+  // It scales flight at every age, so this also sets how loose the tail gets —
+  // 0.3 is the value that keeps a readable figure without flattening the dust.
+  ghostSparkReach: 0.3,
+  ghostSparkSize: 0.04, // spark diameter, in world units at any zoom
   limbStreaks: true,
   limbStreakWidth: 0.45, // multiplier on trailWidth
 
