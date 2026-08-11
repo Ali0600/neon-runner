@@ -5,7 +5,7 @@
 // particle starts, or switching engines would change the look — so the
 // computation lives here once rather than in each engine.
 
-import { plumeEnabled } from '../afterimages/logic.js';
+import { plumeEnabled, glideHands } from '../afterimages/logic.js';
 
 const INHERIT = 0.32; // fraction of runner velocity a particle keeps
 
@@ -45,7 +45,12 @@ export function emissionRate(params, runner) {
   // vanishing mid-air, and the SCOPE readouts keep reporting what is really
   // there. One-off bursts (takeoff, landing, pickups) are event feedback rather
   // than plume, and deliberately survive the gate.
-  if (!plumeEnabled(params.sprintFx)) return 0;
+  // The hand-jet IS plume particles, so under `sprintFx: 'afterimages'` — the
+  // default — the source gate would switch off the very effect the glide FX
+  // mode exists to produce. Hands-glide is the one state that bypasses it, and
+  // only for as long as the glide lasts.
+  const handsGlide = glideHands(params.glideFx, runner.vertical?.mode);
+  if (!plumeEnabled(params.sprintFx) && !handsGlide) return 0;
 
   const moveGate = Math.min(1, runner.speed / 1.6);
   const base =
@@ -74,7 +79,13 @@ export function emissionRate(params, runner) {
  * engine tracks itself.
  */
 export function fillSpawnContext(ctx, runner, params, prev) {
-  ctx.emitPoints = runner.emitPoints;
+  // In a hand-jet glide the light comes out of the PALMS, so the spawn set
+  // narrows to the two hand tips instead of the six body emitters — that is what
+  // makes the jet read as something the runner is doing rather than something
+  // happening to them. The hand points are the same Vector3s the streak ribbons
+  // use, already in world space this frame.
+  const handsGlide = glideHands(params.glideFx, runner.vertical?.mode);
+  ctx.emitPoints = handsGlide && runner.handPoints ? runner.handPoints : runner.emitPoints;
   ctx.position = runner.position;
   ctx.prev = prev;
   ctx.velocity = runner.velocity;

@@ -131,6 +131,50 @@ const CASES = [
     expect: 'leaves every pickup reachable',
   },
 
+  // --- glide FX (hands) ----------------------------------------------------
+  {
+    name: 'glidefx: hands mode never engages',
+    file: 'src/afterimages/logic.js',
+    find: "  return glideFx === 'hands' && verticalMode === 'glide';",
+    repl: '  return false;',
+    expect: 'is only hands mode, and only while actually gliding',
+  },
+  {
+    name: 'glidefx: keep streaking ghosts through a hand-jet glide',
+    file: 'src/afterimages/logic.js',
+    find: '  return emitsGhosts(sprintFx) && !glideHands(glideFx, verticalMode);',
+    repl: '  return emitsGhosts(sprintFx);',
+    expect: 'pauses new ghost captures during a hand-jet glide',
+  },
+  {
+    name: 'glidefx: keep the limb ribbons running through the glide',
+    file: 'src/afterimages/logic.js',
+    find: '  return limbStreaksActive(sprintFx, limbStreaks) && !glideHands(glideFx, verticalMode);',
+    repl: '  return limbStreaksActive(sprintFx, limbStreaks);',
+    expect: 'pauses the limb ribbons on exactly the same condition',
+  },
+  {
+    name: 'glidefx: drop the plume bypass (jet dead on the shipped default)',
+    file: 'src/particles/spawnComputation.js',
+    find: '  if (!plumeEnabled(params.sprintFx) && !handsGlide) return 0;',
+    repl: '  if (!plumeEnabled(params.sprintFx)) return 0;',
+    expect: 'bypasses that gate for a hand-jet glide',
+  },
+  {
+    name: 'glidefx: leak the plume bypass outside a glide',
+    file: 'src/particles/spawnComputation.js',
+    find: "  const handsGlide = glideHands(params.glideFx, runner.vertical?.mode);",
+    repl: "  const handsGlide = params.glideFx === 'hands';",
+    expect: 'does not leak the bypass outside a glide',
+  },
+  {
+    name: 'glidefx: fire the jet from the whole body, not the hands',
+    file: 'src/particles/spawnComputation.js',
+    find: '  ctx.emitPoints = handsGlide && runner.handPoints ? runner.handPoints : runner.emitPoints;',
+    repl: '  ctx.emitPoints = runner.emitPoints;',
+    expect: 'narrows the spawn set to the two hands in a hand-jet glide',
+  },
+
   // --- src/camera.js -------------------------------------------------------
   {
     name: 'camera: stop lifting the rig while gliding',
@@ -378,7 +422,7 @@ const CASES = [
   {
     name: 'spawn: keep the plume running in the afterimages mode',
     file: 'src/particles/spawnComputation.js',
-    find: '  if (!plumeEnabled(params.sprintFx)) return 0;',
+    find: '  if (!plumeEnabled(params.sprintFx) && !handsGlide) return 0;',
     repl: '',
     expect: 'stops the continuous plume in the afterimages mode',
   },
@@ -424,7 +468,8 @@ const CASES = [
   {
     name: 'streaks: emit in every sprint FX mode',
     file: 'src/trail/LimbStreaks.js',
-    find: '        limbStreaksActive(params.sprintFx, params.limbStreaks) && runner.dissolve > 0.02,',
+    find:
+      '        limbStreaksEmitNow(params.sprintFx, params.limbStreaks, params.glideFx, runner.vertical?.mode) &&\n        runner.dissolve > 0.02,',
     repl: '        runner.dissolve > 0.02,',
     expect: 'emits only when the sprint FX mode wants ghosts',
   },

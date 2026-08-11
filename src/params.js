@@ -77,7 +77,15 @@ export const params = {
   // What a sprint looks like: the continuous particle plume, inFamous-style
   // afterimages peeling off the body, or both. Engine-owned so the choice
   // survives a style switch — it is a different effect, not a different palette.
-  sprintFx: 'plume', // 'plume' | 'afterimages' | 'both'
+  sprintFx: 'afterimages', // 'plume' | 'afterimages' | 'both'
+
+  // What a GLIDE looks like, independently of the sprint. 'hands' fires the jet
+  // out of the palms and holds the arms in a thrust pose, so the light reads as
+  // the thing keeping the runner up; 'streak' inherits whatever the sprint FX is
+  // already doing. Hands mode also pauses new afterimage captures and the limb
+  // ribbons for the duration — a chain streaking off the figure competes with
+  // the jet for the same silhouette.
+  glideFx: 'hands', // 'hands' | 'streak'
   ghostCount: 14, // ring size, hard-capped by MAX_GHOSTS
   ghostSpacing: 1.8, // world units between snapshots
   ghostFade: 1.4, // seconds from capture to fully dissolved

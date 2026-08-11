@@ -57,10 +57,59 @@ describe('emissionRate — gliding', () => {
     );
   });
 
-  it('still respects the afterimages-only gate', () => {
-    // The mode gate outranks the floor: a glide must not resurrect the plume in
-    // the one mode that exists to stop it at the source.
-    expect(emissionRate({ ...PARAMS, sprintFx: 'afterimages' }, gliding())).toBe(0);
+  it('still respects the afterimages-only gate in streak mode', () => {
+    // streak mode inherits whatever the sprint FX is doing, and the afterimages
+    // mode exists to stop the plume at its source — so the glide stays dark.
+    expect(emissionRate({ ...PARAMS, sprintFx: 'afterimages', glideFx: 'streak' }, gliding())).toBe(0);
+  });
+
+  it('bypasses that gate for a hand-jet glide', () => {
+    // The hand-jet IS plume particles. Without this bypass the shipped default
+    // (sprintFx 'afterimages') would silently switch off the whole effect the
+    // hands mode exists to produce — the jet would simply never appear.
+    const rate = emissionRate({ ...PARAMS, sprintFx: 'afterimages', glideFx: 'hands' }, gliding());
+    expect(rate).toBeGreaterThanOrEqual(PARAMS.sprintRate * 0.5);
+  });
+
+  it('does not leak the bypass outside a glide', () => {
+    // Hands mode must not turn the plume back on while running around; the
+    // bypass is scoped to the one state that needs it.
+    const p = { ...PARAMS, sprintFx: 'afterimages', glideFx: 'hands' };
+    expect(emissionRate(p, { speed: 12, dissolve: 0.8, vertical: { mode: 'ground' } })).toBe(0);
+    expect(emissionRate(p, { speed: 12, dissolve: 0.8, vertical: { mode: 'air' } })).toBe(0);
+  });
+});
+
+describe('fillSpawnContext — the jet comes out of the hands', () => {
+  const hands = [{ x: 1, y: 1, z: 1 }, { x: -1, y: 1, z: 1 }];
+  const body = [{ x: 0, y: 0, z: 0 }, { x: 0, y: 1, z: 0 }, { x: 0, y: 2, z: 0 }];
+  const runnerWith = (mode) => ({
+    emitPoints: body,
+    handPoints: hands,
+    position: { x: 0, y: 0, z: 0 },
+    velocity: { x: 0, y: 0, z: 0 },
+    vertical: { mode },
+  });
+  const P = { spread: 2, riseBias: 1, lifetime: 1 };
+  const prev = { x: 0, y: 0, z: 0 };
+
+  it('narrows the spawn set to the two hands in a hand-jet glide', () => {
+    const ctx = fillSpawnContext({}, runnerWith('glide'), { ...P, glideFx: 'hands' }, prev);
+    expect(ctx.emitPoints).toBe(hands);
+  });
+
+  it('uses the full body emitters everywhere else', () => {
+    expect(fillSpawnContext({}, runnerWith('glide'), { ...P, glideFx: 'streak' }, prev).emitPoints).toBe(body);
+    expect(fillSpawnContext({}, runnerWith('ground'), { ...P, glideFx: 'hands' }, prev).emitPoints).toBe(body);
+    expect(fillSpawnContext({}, runnerWith('air'), { ...P, glideFx: 'hands' }, prev).emitPoints).toBe(body);
+  });
+
+  it('falls back to the body emitters if a runner has no hand points', () => {
+    // SCOPE and the tests both construct partial runners; a missing field must
+    // not empty the spawn set and silently kill emission.
+    const r = runnerWith('glide');
+    delete r.handPoints;
+    expect(fillSpawnContext({}, r, { ...P, glideFx: 'hands' }, prev).emitPoints).toBe(body);
   });
 });
 

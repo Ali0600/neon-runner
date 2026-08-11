@@ -37,7 +37,7 @@ Two things worth knowing, because neither is obvious from the panel:
 
 - **Two sprint looks, switchable live.** The `SPRINT FX` dropdown at the top of
   the panel picks between the continuous **plume**, inFamous-style
-  **afterimages**, or **both**. Afterimages leave a chain of the runner's own
+  **afterimages** (the default), or **both**. Afterimages leave a chain of the runner's own
   pose behind it — each one a real snapshot of the figure at that instant, the
   ten body matrices copied straight off the live body, so the lean, the bob and
   the wall-climb orientation all come along for free. Each is born already
@@ -79,6 +79,17 @@ Two things worth knowing, because neither is obvious from the panel:
   at the normal follow height you stare edge-on through the jet and the whole
   thing reads as one white blob, where from above the figure and the light
   billowing beneath it are two separate things. Drag still works while it does.
+- **`GLIDING FX`**, directly under `SPRINT FX`, picks what the glide looks like
+  independently of the sprint. **hands** (the default) fires the jet out of the
+  **palms** and holds the arms in a thrust pose, so the light reads as the thing
+  keeping you up rather than something leaking off a figure that happens to be
+  falling — and it pauses new afterimages and limb streaks for the duration,
+  since a chain streaking off the body competes with the jet for the same
+  silhouette. Ghosts already in the air finish their fade rather than popping.
+  **streak** keeps whatever the sprint FX was doing. Note the interaction the
+  default forces: `afterimages` stops the plume *at its source*, and the jet is
+  made of plume particles, so hands mode bypasses that gate — narrowly, only
+  while actually gliding.
 - **A solid city.** 70 instanced buildings — 8 towers inside the play field and
   a 62-building skyline beyond — laid out from a seeded PRNG so the world is
   identical every load, and rendered in one draw call as dark slabs with lit

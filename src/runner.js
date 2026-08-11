@@ -14,6 +14,21 @@ import {
 import { resolveTargetSpeed } from './speed.js';
 import { slideXZ, nearestFace, groundHeightAt } from './city.js';
 import { stepVertical, initialVertical } from './vertical.js';
+import { glideHands } from './afterimages/logic.js';
+
+// The hand-jet thrust pose. Shoulders swept back and down, elbows near straight,
+// so the arms point down-and-out and the palms lead the jet. Constants, not a
+// pose that eases in: the whole file's freeze safety rests on the figure being a
+// pure function of (phase, mode), and an easing term here would need an epsilon
+// snap of its own to ever settle.
+// rotation.x is measured from the arm ALREADY hanging straight down, so this is
+// a small angle, not a big sweep: 0.3 rad tips the palms slightly behind the
+// hips, the way you would push against the ground. Setting it near pi swings the
+// arms up over the head instead — which is what a first pass did, and the tell
+// was the hand points sitting ABOVE the runner's head in world space.
+const THRUST_SHOULDER = 0.3;
+const THRUST_ELBOW = -0.18; // rad — very slightly bent, not locked
+const THRUST_SPLAY = 0.34; // rad, rotation.z — hands pushed out from the body
 
 const ACCEL = 9.0; // response rate toward target velocity
 const BOUND = 180; // keep the runner inside the ground plane
@@ -191,6 +206,12 @@ export function createRunner(params, city = []) {
     scopeOverride: null,
     scopeSample: null,
   };
+
+  // The two hand tips, for the hand-jet glide. Aliases of the first two
+  // streakPoints rather than copies — they are the same world-space points,
+  // refreshed once per frame below, and a second set would be one more thing to
+  // keep in step for no gain.
+  runner.handPoints = [runner.streakPoints[0], runner.streakPoints[1]];
 
   /**
    * Fire one scripted event immediately, independent of the schedule, so a
@@ -453,10 +474,27 @@ export function createRunner(params, city = []) {
     legL.knee.rotation.x = Math.max(0, -Math.sin(p - 0.6)) * amp * 1.5;
     legR.knee.rotation.x = Math.max(0, -Math.sin(p + Math.PI - 0.6)) * amp * 1.5;
 
-    armL.shoulder.rotation.x = Math.sin(p + Math.PI) * amp * 0.8;
-    armR.shoulder.rotation.x = Math.sin(p) * amp * 0.8;
-    armL.elbow.rotation.x = -(0.5 + Math.sin(p) * 0.35) * gait;
-    armR.elbow.rotation.x = -(0.5 + Math.sin(p + Math.PI) * 0.35) * gait;
+    // In a hand-jet glide the arms stop swinging and hold a thrust pose, so the
+    // light pouring from the palms reads as the thing holding the runner up
+    // rather than as something leaking off a figure that happens to be running.
+    // The legs keep their damped cycle — a completely rigid figure reads dead.
+    if (glideHands(params.glideFx, runner.vertical.mode)) {
+      armL.shoulder.rotation.x = THRUST_SHOULDER;
+      armR.shoulder.rotation.x = THRUST_SHOULDER;
+      armL.shoulder.rotation.z = -THRUST_SPLAY;
+      armR.shoulder.rotation.z = THRUST_SPLAY;
+      armL.elbow.rotation.x = THRUST_ELBOW;
+      armR.elbow.rotation.x = THRUST_ELBOW;
+    } else {
+      armL.shoulder.rotation.x = Math.sin(p + Math.PI) * amp * 0.8;
+      armR.shoulder.rotation.x = Math.sin(p) * amp * 0.8;
+      // Cleared explicitly: the thrust pose writes rotation.z, and leaving it
+      // set would keep the arms splayed for every stride after a glide ended.
+      armL.shoulder.rotation.z = 0;
+      armR.shoulder.rotation.z = 0;
+      armL.elbow.rotation.x = -(0.5 + Math.sin(p) * 0.35) * gait;
+      armR.elbow.rotation.x = -(0.5 + Math.sin(p + Math.PI) * 0.35) * gait;
+    }
 
     body.position.y = Math.abs(Math.sin(p)) * 0.06 * gait;
     body.rotation.x = -runner.dissolve * 0.42 * gait; // lean into the sprint

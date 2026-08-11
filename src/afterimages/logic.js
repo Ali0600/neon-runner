@@ -58,6 +58,34 @@ export function limbStreaksActive(sprintFx, limbStreaks) {
   return emitsGhosts(sprintFx) && limbStreaks !== false;
 }
 
+// --- glide FX --------------------------------------------------------------
+// `glideFx` picks what a glide looks like: 'hands' fires the jet out of the
+// runner's palms and holds the arms in a thrust pose, 'streak' keeps whatever
+// the sprint FX was already doing. `undefined` reads as 'streak' so a params
+// object written before this feature behaves the way it used to.
+
+/** Is the hand-jet glide active right now? */
+export function glideHands(glideFx, verticalMode) {
+  return glideFx === 'hands' && verticalMode === 'glide';
+}
+
+/**
+ * Should a new afterimage be captured this frame?
+ *
+ * The hand-jet is the story during a glide, and a chain of ghosts streaking off
+ * the figure competes with it — so captures PAUSE for the duration. Only new
+ * ones: the ghosts already in the ring keep their slots and fade out on their
+ * own clock, because cutting a live chain off mid-fade would pop.
+ */
+export function ghostsEmitNow(sprintFx, glideFx, verticalMode) {
+  return emitsGhosts(sprintFx) && !glideHands(glideFx, verticalMode);
+}
+
+/** Same pause, for the four limb ribbons. */
+export function limbStreaksEmitNow(sprintFx, limbStreaks, glideFx, verticalMode) {
+  return limbStreaksActive(sprintFx, limbStreaks) && !glideHands(glideFx, verticalMode);
+}
+
 // --- cadence ---------------------------------------------------------------
 
 /**

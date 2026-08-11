@@ -46,6 +46,11 @@ export function createGui(params, apply, stats, onTrigger, onStep) {
       on();
     });
 
+  // Directly under SPRINT FX: the two read as a pair, and a glide look buried in
+  // a folder would not be found by anyone who had not already been told it
+  // exists.
+  gui.add(params, 'glideFx', ['hands', 'streak']).name('GLIDING FX').onChange(on);
+
   const forces = gui.addFolder('Forces (gpgpu)');
   forces.add(params, 'vortex', 0, 20, 0.1).name('trail vortex');
   forces.add(params, 'turbulence', 0, 4, 0.05).name('turbulence');
