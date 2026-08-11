@@ -33,7 +33,7 @@ export const params = {
   collectRadius: 1.6,
 
   // --- scope (inspection view) ---
-  scope: false,
+  scope: true,
   scopeProjection: 'ortho',
   scopeViewHeight: 14, // world units visible vertically
   // Runner's screen position, 0 = left edge, 1 = right. It travels toward +x,
@@ -116,10 +116,17 @@ export const params = {
   // speed the scope scheduler asks for; direction is untouched, so turns still
   // steer. Range goes past SPRINT_SPEED (17) deliberately, to exaggerate streak
   // stretch and emission beyond what normal play reaches.
-  holdSpeed: false,
+  // On by default alongside SCOPE, so the view opens on a steady sprint with
+  // nothing modulating it. At 12 the dissolve sits around 0.59 — above
+  // ghostMinDissolve (0.35), so the afterimage chain still emits.
+  holdSpeed: true,
   holdSpeedValue: 12,
 
   // --- debug / verification hooks ---
   autopilot: false,
-  forceSprint: false,
+  // Redundant while holdSpeed is on — the lock returns first in
+  // resolveTargetSpeed, so this is a no-op and the GUI greys it out. Kept on so
+  // that unticking HOLD SPEED leaves the runner sprinting rather than dropping
+  // to a walk.
+  forceSprint: true,
 };
