@@ -45,10 +45,15 @@ export const params = {
   // straight on relative particle position.
   scopeLaneHalf: 2000,
   scopeInterval: 3.0, // cruise seconds between events
-  scopeTurn: true,
-  scopeSprint: true,
-  scopeStop: true,
-  scopeJump: true,
+  // Every scheduled event starts OFF, so entering SCOPE gives a steady cruise —
+  // the state where the effect under inspection is not being perturbed by
+  // anything. Tick the ones you want to watch. `buildSchedule` treats an empty
+  // set as pure cruise with a non-zero period, so this is a supported
+  // configuration rather than a degenerate one.
+  scopeTurn: false,
+  scopeSprint: false,
+  scopeStop: false,
+  scopeJump: false,
   // Which kind the T key and the fire button inject. It was hardwired to 'turn',
   // which meant a newly added event could only be seen by waiting for the
   // schedule to come round to it — in the one view built for watching a single
@@ -56,7 +61,7 @@ export const params = {
   scopeTriggerKind: 'turn',
   // The lane grows a synthetic wall for this one, and the camera tracks height
   // to follow the climb — see SCOPE_WALL_TOP.
-  scopeWallrun: true,
+  scopeWallrun: false,
   // Kept within what the runner can physically track during a turn segment —
   // a larger value just saturates the steering and the number stops meaning
   // anything. See TURN_SPEED_MIX in scope/schedule.js.
