@@ -16,7 +16,12 @@ import {
   WALL_CLIMB_SPEED,
   WALL_MIN_SPEED,
   CREST_BOOST,
+  GLIDE_SINK_SPEED,
+  GLIDE_MIN_FALL_SPEED,
 } from './constants.js';
+
+/** Modes in which holding the key can grab a wall — every airborne state. */
+const AIRBORNE = new Set(['air', 'glide']);
 
 /** A runner standing on the ground, before anything has happened. */
 export function initialVertical() {
@@ -72,20 +77,44 @@ export function stepVertical(s, i) {
     return { mode: 'wall', y, vy: WALL_CLIMB_SPEED, wallTop: s.wallTop, event: null };
   }
 
-  if (s.mode === 'air') {
-    const vy = s.vy - GRAVITY * i.simDt;
+  // `air` and `glide` are one branch on purpose: they differ only in how vy is
+  // chosen, and they must agree exactly on mounting and landing. Written as two
+  // branches, the mount precondition would be duplicated — which is the split
+  // that produced the wall-mount bug the comment above records.
+  if (AIRBORNE.has(s.mode)) {
+    // Deploy while descending only. Holding the key through a jump has to let
+    // the arc play out, and the minimum fall speed keeps the apex — where vy
+    // passes through zero — from flickering in and out of the glide.
+    const gliding = i.jumpHeld && (s.mode === 'glide' || s.vy < -GLIDE_MIN_FALL_SPEED);
+
+    // Gliding pins the sink. The frame a glide is RELEASED carries that sink
+    // speed through unchanged and lets gravity take over from the next frame:
+    // letting go is a handoff, not a shove, the same way the wall branch drops
+    // from rest rather than kicking downward.
+    let vy;
+    if (gliding) vy = -GLIDE_SINK_SPEED;
+    else if (s.mode === 'glide') vy = s.vy;
+    else vy = s.vy - GRAVITY * i.simDt;
+
     const y = s.y + vy * i.simDt;
 
-    // Mount before landing, deliberately. Holding jump while falling past a
-    // wall grabs it rather than touching down — that IS the traversal move, and
-    // it is what lets a descent flow straight back into a climb.
+    // Mount before landing AND before gliding, deliberately. Holding jump while
+    // falling past a wall grabs it rather than touching down or drifting — that
+    // IS the traversal move, and it is what lets a descent flow straight back
+    // into a climb. A glide that outranked it would make a wall unreachable
+    // from the descent that is the main way you arrive at one.
     if (canMount && y < i.wallTop) {
       return { mode: 'wall', y, vy: WALL_CLIMB_SPEED, wallTop: i.wallTop, event: 'mount' };
     }
     if (y <= i.supportY) {
       return { mode: 'ground', y: i.supportY, vy: 0, wallTop: s.wallTop, event: 'land' };
     }
-    return { mode: 'air', y, vy, wallTop: s.wallTop, event: null };
+
+    const mode = gliding ? 'glide' : 'air';
+    // Fires on the transition only, so the one-off burst is not re-triggered
+    // every frame of the drift.
+    const event = mode === 'glide' && s.mode !== 'glide' ? 'glide' : null;
+    return { mode, y, vy, wallTop: s.wallTop, event };
   }
 
   // --- ground ---------------------------------------------------------------

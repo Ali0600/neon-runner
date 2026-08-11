@@ -176,6 +176,18 @@ function frame(dt) {
   // same buffer upload as this frame's continuous emission.
   // Analytic only, like every other burst: the GPGPU engine has no injection
   // path for one-off emissions.
+  // Deploying the glide gets its own downward thump, so the moment the drift
+  // catches reads as a burst of thrust rather than as the fall quietly slowing.
+  if (runner.verticalEvent === 'glide') {
+    _vertBurst.set(runner.position.x, runner.position.y + 0.14, runner.position.z);
+    particles.emitBurst(_vertBurst, 200, {
+      simTime,
+      speed: 7.0,
+      lifetime: params.lifetime * 1.15,
+      up: -3.2, // hardest downward kick of the three — this one is the jet
+    });
+  }
+
   if (runner.verticalEvent === 'takeoff' || runner.verticalEvent === 'land') {
     const landing = runner.verticalEvent === 'land';
     _vertBurst.set(runner.position.x, runner.position.y + 0.14, runner.position.z);

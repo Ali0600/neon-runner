@@ -440,8 +440,11 @@ export function createRunner(params, city = []) {
     // free air they tuck: a full sprint cycle mid-arc reads as running on
     // nothing, which is the one place the distance-driven gait has no ground to
     // match.
-    const gait =
-      Math.min(1, runner.speed / WALK_SPEED) * (runner.vertical.mode === 'air' ? 0.3 : 1);
+    // Gliding damps the same way as free air — more so, since the figure is
+    // being held up rather than falling and a running cycle would fight that.
+    const airborneGait =
+      runner.vertical.mode === 'air' ? 0.3 : runner.vertical.mode === 'glide' ? 0.15 : 1;
+    const gait = Math.min(1, runner.speed / WALK_SPEED) * airborneGait;
     const amp = (0.55 + runner.dissolve * 0.5) * gait;
 
     legL.hip.rotation.x = Math.sin(p) * amp;

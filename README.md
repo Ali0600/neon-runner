@@ -21,6 +21,7 @@ Then open http://localhost:5173. The panel on the right retunes everything live.
 | **hold Shift** | sprint — the runner dissolves and emission spikes |
 | **Space** | jump |
 | **hold Space** at a wall, while running | run straight up the building, crest onto the roof |
+| **hold Space** while falling | glide — the descent caps at a slow sink and a neon jet fires downward |
 | **drag** | orbit the camera (follow view only; SCOPE is locked side-on) |
 | **T** | fire one SCOPE event immediately, to watch a single transient |
 | **.** | step one frame while paused |
@@ -60,11 +61,20 @@ Two things worth knowing, because neither is obvious from the panel:
   its own sprint — crests over the lip and lands on the roof, where it can keep
   running until it steps off an edge. Modelled on *Second Son*'s Light Speed,
   which turns vertical without slowing down. The whole vertical axis is a
-  three-state machine in a dependency-free module, so every transition is unit
+  four-state machine in a dependency-free module, so every transition is unit
   tested, and it advances only on the sim clock — at `timeScale = 0` a runner
-  frozen mid-climb, mid-fall or on a roof renders bit-identical frames. Takeoff
-  kicks a burst downward, landing splashes one outward, and while climbing the
-  rise bias inverts so the plume trails **down** the wall behind you.
+  frozen mid-climb, mid-fall, mid-glide or on a roof renders bit-identical
+  frames. Takeoff kicks a burst downward, landing splashes one outward, and
+  while climbing the rise bias inverts so the plume trails **down** the wall
+  behind you.
+- **The neon glide.** Keep holding Space as you fall and the drop catches: the
+  descent pins to a slow sink while a neon jet fires **downward** and billows
+  out beneath the figure, so a step off a roof becomes a drift across the city.
+  It deploys only once you are actually falling, so a jump's arc still plays out
+  — and a wall in reach always outranks it, because arriving at a wall from a
+  descent is how you reach one. The jet reuses the wall-run's aiming seam rather
+  than adding a second one, and the emission holds a floor while gliding, so the
+  plume cannot thin out over the seconds it is meant to be holding you up.
 - **A solid city.** 70 instanced buildings — 8 towers inside the play field and
   a 62-building skyline beyond — laid out from a seeded PRNG so the world is
   identical every load, and rendered in one draw call as dark slabs with lit
@@ -161,7 +171,7 @@ while the analytic engine pays only for what is alive.
 | `src/shaders/chunks/particleCommon.glsl` | Billboard and sizing maths shared by both engines' vertex shaders |
 | `src/runner.js` | Kinematics, joint hierarchy, run cycle, dissolve material |
 | `src/city.js` | Pure: building layout, ground height, wall faces, collision, camera sightlines |
-| `src/vertical.js` | Pure: the ground / air / wall state machine — gravity, jump, climb, crest |
+| `src/vertical.js` | Pure: the ground / air / wall / glide state machine — gravity, jump, climb, crest, glide |
 | `src/speed.js`, `src/constants.js` | Pure speed-precedence resolution; shared motion constants |
 | `src/trail/Trail.js` | Position sampling and ribbon rebuild |
 | `src/camera.js` | Third-person follow rig with epsilon-snapped easing |

@@ -6,6 +6,8 @@ import {
   WALL_CLIMB_SPEED,
   WALL_MIN_SPEED,
   CREST_BOOST,
+  GLIDE_SINK_SPEED,
+  GLIDE_MIN_FALL_SPEED,
 } from '../src/constants.js';
 
 const DT = 1 / 60;
@@ -257,6 +259,107 @@ describe('stepVertical — wall', () => {
   });
 });
 
+describe('stepVertical — glide', () => {
+  // A falling runner, holding the key, well clear of the ground.
+  const falling = (vy = -6) => ({ mode: 'air', y: 20, vy, wallTop: 0 });
+  const held = (over = {}) => input({ jumpHeld: true, supportY: 0, ...over });
+
+  it('engages while descending with the key held', () => {
+    const s = stepVertical(falling(), held());
+    expect(s.mode).toBe('glide');
+    expect(s.event).toBe('glide');
+  });
+
+  it('does NOT engage on the way up', () => {
+    // The whole point of the descending gate: holding the key through a jump
+    // has to let the arc play out rather than cutting the rise short.
+    const s = stepVertical({ mode: 'air', y: 3, vy: JUMP_VELOCITY, wallTop: 0 }, held());
+    expect(s.mode).toBe('air');
+    expect(s.vy).toBeLessThan(JUMP_VELOCITY); // still under gravity
+  });
+
+  it('does not engage at the apex, where vy is near zero', () => {
+    // Without a minimum fall speed the apex flickers in and out of glide on
+    // consecutive frames, which reads as the jump stuttering.
+    const s = stepVertical({ mode: 'air', y: 5, vy: -GLIDE_MIN_FALL_SPEED * 0.5, wallTop: 0 }, held());
+    expect(s.mode).toBe('air');
+  });
+
+  it('does not engage without the key', () => {
+    expect(stepVertical(falling(), input()).mode).toBe('air');
+  });
+
+  it('sinks at a constant speed, frame after frame', () => {
+    const { state, events } = run({ mode: 'glide', y: 20, vy: -GLIDE_SINK_SPEED, wallTop: 0 },
+      { jumpHeld: true }, 30);
+    expect(state.mode).toBe('glide');
+    expect(state.vy).toBe(-GLIDE_SINK_SPEED);
+    expect(state.y).toBeCloseTo(20 - GLIDE_SINK_SPEED * DT * 30, 6);
+    expect(events).toEqual([]); // engaging fires once, not every frame
+  });
+
+  it('reports the sink as vy rather than zero', () => {
+    // Four systems downstream read runner.velocity to decide how fast the
+    // runner is moving. The wall branch already had this exact bug: reporting
+    // zero told the emitter it was standing still and killed the plume.
+    const s = stepVertical(falling(), held());
+    expect(s.vy).toBe(-GLIDE_SINK_SPEED);
+  });
+
+  it('falls far slower than a free fall over the same span', () => {
+    const g = run({ mode: 'glide', y: 40, vy: -GLIDE_SINK_SPEED, wallTop: 0 }, { jumpHeld: true }, 60);
+    const free = run({ mode: 'air', y: 40, vy: 0, wallTop: 0 }, {}, 60);
+    expect(g.state.y).toBeGreaterThan(free.state.y + 5);
+  });
+
+  it('releasing returns to air carrying the current vy, with no shove', () => {
+    const s = stepVertical({ mode: 'glide', y: 20, vy: -GLIDE_SINK_SPEED, wallTop: 0 }, input());
+    expect(s.mode).toBe('air');
+    expect(s.vy).toBe(-GLIDE_SINK_SPEED);
+    expect(s.event).toBe(null);
+  });
+
+  it('resumes accelerating once released', () => {
+    let s = stepVertical({ mode: 'glide', y: 20, vy: -GLIDE_SINK_SPEED, wallTop: 0 }, input());
+    const first = s.vy;
+    s = stepVertical(s, input());
+    expect(s.vy).toBeLessThan(first);
+  });
+
+  it('lands from a glide and fires land exactly once', () => {
+    const { state, events } = run({ mode: 'glide', y: 0.5, vy: -GLIDE_SINK_SPEED, wallTop: 0 },
+      { jumpHeld: true }, 40);
+    expect(state.mode).toBe('ground');
+    expect(events.filter((e) => e === 'land')).toHaveLength(1);
+  });
+
+  it('a wall in reach still wins over gliding', () => {
+    // The precedence case. Holding the key past a wall IS the traversal move,
+    // and a glide that outranked it would make wall-runs unreachable from any
+    // descent — which is the main way you reach one.
+    const s = stepVertical(falling(), held({ wallTop: 30, groundSpeed: WALL_MIN_SPEED + 1 }));
+    expect(s.mode).toBe('wall');
+    expect(s.event).toBe('mount');
+  });
+
+  it('mounts a wall from inside a glide', () => {
+    const s = stepVertical(
+      { mode: 'glide', y: 20, vy: -GLIDE_SINK_SPEED, wallTop: 0 },
+      held({ wallTop: 30, groundSpeed: WALL_MIN_SPEED + 1 })
+    );
+    expect(s.mode).toBe('wall');
+    expect(s.event).toBe('mount');
+  });
+
+  it('does not mount from a glide below the minimum speed', () => {
+    const s = stepVertical(
+      { mode: 'glide', y: 20, vy: -GLIDE_SINK_SPEED, wallTop: 0 },
+      held({ wallTop: 30, groundSpeed: WALL_MIN_SPEED - 1 })
+    );
+    expect(s.mode).toBe('glide');
+  });
+});
+
 describe('stepVertical — the freeze invariant', () => {
   // The project's standing gate, pinned here at the unit level: at timeScale 0
   // nothing may advance. This file upholds it structurally — every term is
@@ -270,6 +373,7 @@ describe('stepVertical — the freeze invariant', () => {
       { mode: 'wall', y: 12, vy: WALL_CLIMB_SPEED, wallTop: 30 },
       { jumpHeld: true, wallTop: 30 },
     ],
+    ['glide', { mode: 'glide', y: 14, vy: -GLIDE_SINK_SPEED, wallTop: 0 }, { jumpHeld: true }],
   ];
 
   for (const [name, state, over] of cases) {

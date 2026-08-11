@@ -6,11 +6,66 @@
   controls. *Revisit hook:* `src/post.js` is the only file that knows about the
   composer; its `{ render, setSize, applyParams }` shape is the seam.
 - **Heat-shimmer trail for smoke style** (D13) — needs a refraction post pass.
+- **Forward-carrying glide** (D39) — trade height for distance instead of the
+  hover's constant sink, so a roof jump covers ground like a wingsuit.
+  *Revisit hook:* the `gliding` branch in `src/vertical.js`; it would add a
+  forward term rather than only pinning `vy`.
 - **Skinned/rigged runner** (D8) — the current figure is a joint hierarchy of
   capsules. *Revisit hook:* `createRunner` in `src/runner.js` builds the joints
   and drives them in one block.
 
 ---
+
+## D39 — The glide is a fourth FSM mode, and a wall still outranks it
+
+**Fork:** holding Space while falling should glide. But holding Space in the air already
+means "grab a wall if one is in reach", so the new behaviour lands on an occupied key in
+an occupied state.
+
+- *A modifier flag on `air`* (`s.gliding`), keeping three modes: fewer states, but every
+  consumer that switches on `mode` (`spawnComputation`, the gait, SCOPE's event kinds)
+  would have to learn to read a second field to know what the runner is doing — and the
+  ones that forgot would silently treat a glide as a free fall.
+- *A fourth mode, `glide`.*
+
+**Chosen:** the fourth mode. `mode` stays the single answer to "what is the runner doing",
+which is what every downstream reader already assumes.
+
+**Precedence is the real decision.** Inside the airborne branch the order is `canMount` →
+land → glide. A wall in reach wins, because arriving at a wall from a descent is the main
+way you reach one, and a glide that outranked it would make wall-runs unreachable from the
+move that sets them up. `air` and `glide` are handled by ONE branch for the same reason
+the file's earlier comment gives: splitting the mount precondition across branches is
+exactly what produced the original wall-mount bug, so the two airborne states share the
+check rather than each carrying a copy.
+
+**Two properties that had to be deliberate:**
+
+- **`vy` reports `-GLIDE_SINK_SPEED`, never 0.** Four systems read `runner.velocity` to
+  decide how fast the runner is moving. The wall branch already carries a comment about
+  reporting zero killing the plume for a whole climb; a glide reporting zero would do the
+  same over exactly the seconds the effect exists for.
+- **Deploy requires an existing fall of `GLIDE_MIN_FALL_SPEED`.** Without it the apex of a
+  jump — where `vy` crosses zero — flickers in and out of the glide frame by frame, which
+  reads as the jump stuttering rather than as a mode change. Releasing hands back to `air`
+  carrying the sink speed rather than applying gravity that frame, matching the wall
+  branch's "drops from rest, no shove".
+
+Freeze safety stays structural: every term still multiplies by `simDt` and nothing eases,
+so `timeScale = 0` remains a fixed point by construction. `glide` was added to the
+parameterized fixed-point test rather than trusted to inherit it.
+
+**The effect reuses the wall-run's seam.** `ctx.climb` already existed to aim the plume
+down a wall, because rise is a world-up *uniform* in both engines' shaders and spawn
+velocity is the only place a direction can be applied per particle without splitting the
+engines apart. `ctx.glide` rides the same expression — folded into one line rather than
+added as a second, so the two aimings cannot silently disagree.
+
+**Status of alternatives:** modifier flag on `air` — `rejected — every consumer switches
+on mode; a second field is a second thing to forget`. *Forward-carrying glide (trade
+height for distance)* — `deferred — worth trying` as a variant; the user picked the hover.
+*Revisit hook:* `GLIDE_SINK_SPEED` in `src/constants.js` and the `gliding` branch in
+`src/vertical.js`.
 
 ## D38 — The eroded matter becomes the sparks
 

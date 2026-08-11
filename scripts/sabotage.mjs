@@ -133,6 +133,57 @@ const CASES = [
 
   // --- src/vertical.js -----------------------------------------------------
   {
+    name: 'glide: drop the descending gate (glides on the way up)',
+    file: 'src/vertical.js',
+    find: "    const gliding = i.jumpHeld && (s.mode === 'glide' || s.vy < -GLIDE_MIN_FALL_SPEED);",
+    repl: '    const gliding = i.jumpHeld;',
+    expect: 'does NOT engage on the way up',
+  },
+  {
+    name: 'glide: report vy 0 while gliding',
+    file: 'src/vertical.js',
+    find: '    if (gliding) vy = -GLIDE_SINK_SPEED;',
+    repl: '    if (gliding) vy = 0;',
+    expect: 'reports the sink as vy rather than zero',
+  },
+  {
+    name: 'glide: let the glide outrank a wall in reach',
+    file: 'src/vertical.js',
+    find: '    if (canMount && y < i.wallTop) {',
+    repl: '    if (!gliding && canMount && y < i.wallTop) {',
+    expect: 'a wall in reach still wins over gliding',
+  },
+  {
+    name: 'glide: fire the deploy event every frame',
+    file: 'src/vertical.js',
+    find: "    const event = mode === 'glide' && s.mode !== 'glide' ? 'glide' : null;",
+    repl: "    const event = mode === 'glide' ? 'glide' : null;",
+    expect: 'sinks at a constant speed, frame after frame',
+  },
+  {
+    name: 'glide: shove downward on release instead of handing off',
+    file: 'src/vertical.js',
+    find: "    else if (s.mode === 'glide') vy = s.vy;",
+    repl: "    else if (s.mode === 'glide') vy = s.vy - GRAVITY * i.simDt;",
+    expect: 'releasing returns to air carrying the current vy',
+  },
+
+  // --- src/particles/spawnComputation.js (glide) ---------------------------
+  {
+    name: 'glide: stop aiming the jet downward',
+    file: 'src/particles/spawnComputation.js',
+    find: '    glide * GLIDE_JET * mag;',
+    repl: '    0 * GLIDE_JET * mag;',
+    expect: 'sends the plume downward while gliding',
+  },
+  {
+    name: 'glide: drop the emission floor',
+    file: 'src/particles/spawnComputation.js',
+    find: "  if (runner.vertical && runner.vertical.mode === 'glide') {",
+    repl: '  if (false) {',
+    expect: 'holds a floor while gliding',
+  },
+  {
     name: 'vertical: mount without the key held',
     file: 'src/vertical.js',
     find: '    (i.jumpHeld || i.jumpPressed) &&\n    i.wallTop !== null &&',
