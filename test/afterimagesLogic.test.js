@@ -6,6 +6,9 @@ import {
   plumeEnabled,
   emitsGhosts,
   limbStreaksActive,
+  glideHands,
+  ghostsEmitNow,
+  limbStreaksEmitNow,
   shouldSnapshot,
   ghostStrength,
   ghostErosion,
@@ -47,6 +50,48 @@ describe('sprint FX mode gates', () => {
     for (const mode of ['plume', 'afterimages', 'both']) {
       expect(plumeEnabled(mode) || emitsGhosts(mode), `${mode} renders nothing`).toBe(true);
     }
+  });
+});
+
+describe('glide FX gates', () => {
+  it('is only hands mode, and only while actually gliding', () => {
+    expect(glideHands('hands', 'glide')).toBe(true);
+    expect(glideHands('hands', 'air')).toBe(false);
+    expect(glideHands('hands', 'ground')).toBe(false);
+    expect(glideHands('streak', 'glide')).toBe(false);
+  });
+
+  it('treats an absent glideFx as the old streak behaviour', () => {
+    // A params object written before this feature must keep working unchanged.
+    expect(glideHands(undefined, 'glide')).toBe(false);
+  });
+
+  it('pauses new ghost captures during a hand-jet glide', () => {
+    // The jet is the story; a chain of ghosts streaking off the figure competes
+    // with it. Existing ghosts keep fading — only new captures stop.
+    expect(ghostsEmitNow('afterimages', 'hands', 'glide')).toBe(false);
+    expect(ghostsEmitNow('both', 'hands', 'glide')).toBe(false);
+  });
+
+  it('keeps capturing everywhere else', () => {
+    expect(ghostsEmitNow('afterimages', 'hands', 'ground')).toBe(true);
+    expect(ghostsEmitNow('afterimages', 'hands', 'air')).toBe(true);
+    // streak mode is opting OUT of the pause, so a glide still captures.
+    expect(ghostsEmitNow('afterimages', 'streak', 'glide')).toBe(true);
+  });
+
+  it('does not resurrect ghosts in a mode that never had them', () => {
+    // The pause is a subtraction. It must not become a source of its own.
+    expect(ghostsEmitNow('plume', 'streak', 'ground')).toBe(false);
+    expect(ghostsEmitNow('plume', 'hands', 'glide')).toBe(false);
+  });
+
+  it('pauses the limb ribbons on exactly the same condition', () => {
+    expect(limbStreaksEmitNow('both', true, 'hands', 'glide')).toBe(false);
+    expect(limbStreaksEmitNow('both', true, 'hands', 'ground')).toBe(true);
+    expect(limbStreaksEmitNow('both', true, 'streak', 'glide')).toBe(true);
+    // The toggle still outranks it.
+    expect(limbStreaksEmitNow('both', false, 'streak', 'ground')).toBe(false);
   });
 });
 

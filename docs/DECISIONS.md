@@ -16,6 +16,54 @@
 
 ---
 
+## D40 — The hand-jet glide bypasses the plume gate, and pauses the chain
+
+**Fork:** a `GLIDING FX` mode where light pours from the palms and the arms hold a thrust
+pose, so the jet reads as the thing keeping the runner up. Shipped alongside
+`sprintFx` defaulting to `afterimages`.
+
+**The collision those two asks create:** the hand-jet IS plume particles, and
+`sprintFx: 'afterimages'` exists precisely to stop the plume **at its source**
+(`emissionRate` returns 0 — D35, so live particles age out honestly rather than being
+hidden). Shipping both asks naively means the new default silently switches off the new
+feature: no error, no warning, just a glide with nothing coming out of it.
+
+- *Render the jet through a separate emitter that the sprint gate never sees:* a second
+  spawn path to keep in step with two engines — exactly what `spawnComputation.js` exists
+  to prevent.
+- *Make hands-glide bypass the gate.*
+
+**Chosen:** the bypass, scoped as narrowly as it can be — `glideHands(glideFx, mode)` is
+true only in hands mode and only while the vertical FSM is actually in `glide`. A test
+pins that it does not leak to `ground` or `air`, because a bypass that outlived its state
+would quietly re-enable the plume in the one mode built to suppress it.
+
+**The pause is a subtraction, not a switch.** Hands mode stops NEW afterimage captures and
+new limb-ribbon samples for the duration: a chain streaking off the figure competes with
+the jet for the same silhouette, which is the thing the mode exists to show. Ghosts
+already in the ring keep their slots and fade on their own clock — cutting a live chain
+off mid-fade would pop. Both gates live in `logic.js` beside the existing ones
+(`ghostsEmitNow`, `limbStreaksEmitNow`) rather than as extra conditions at the two call
+sites, so the two consumers cannot drift apart.
+
+**The emitter swap reuses what was already there.** `fillSpawnContext` sets
+`ctx.emitPoints = runner.handPoints` — aliases of the first two `streakPoints`, which are
+already world-space hand tips refreshed once per frame. No new geometry, no second set to
+keep in step, and it falls back to the body emitters when a partial runner has no
+`handPoints` rather than emptying the spawn set and silently killing emission.
+
+**Freeze safety is unchanged:** the thrust pose is a pure `f(mode)` of three constants
+with no easing, so a frozen glide holds a frozen pose.
+
+**A tuning note worth keeping:** `rotation.x` on the shoulder is measured from an arm that
+**already hangs straight down**, so the thrust pose is a ~0.3 rad tip, not a big sweep. A
+first pass used 2.5 rad and put the arms over the head; the tell was the hand points
+measuring *above* the runner's head in world space, which is the kind of thing the code
+reads as fine and the geometry does not.
+
+**Status of alternatives:** separate emitter — `rejected — a second spawn path for two
+engines to keep in step, which is the failure spawnComputation.js exists to prevent`.
+
 ## D39 — The glide is a fourth FSM mode, and a wall still outranks it
 
 **Fork:** holding Space while falling should glide. But holding Space in the air already

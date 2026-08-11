@@ -1,5 +1,5 @@
 import { createTrail } from './Trail.js';
-import { limbStreaksActive } from '../afterimages/logic.js';
+import { limbStreaksEmitNow } from '../afterimages/logic.js';
 
 // The long light streaks that trail off the hands and feet during an afterimage
 // sprint.
@@ -21,7 +21,8 @@ export function createLimbStreaks(params) {
       },
       getWidth: () => params.trailWidth * params.limbStreakWidth,
       shouldEmit: (runner) =>
-        limbStreaksActive(params.sprintFx, params.limbStreaks) && runner.dissolve > 0.02,
+        limbStreaksEmitNow(params.sprintFx, params.limbStreaks, params.glideFx, runner.vertical?.mode) &&
+        runner.dissolve > 0.02,
       // Always visible. When a mode switch stops emission the existing samples
       // age out over trailFade instead of vanishing in one frame.
       getVisible: () => true,

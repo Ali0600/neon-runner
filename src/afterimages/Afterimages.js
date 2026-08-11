@@ -7,7 +7,7 @@ import sparkFrag from '../shaders/ghostSparks.frag.glsl?raw';
 import dissolveNoise from '../shaders/chunks/dissolveNoise.glsl?raw';
 import {
   MAX_GHOSTS,
-  emitsGhosts,
+  ghostsEmitNow,
   shouldSnapshot,
   ghostStrength,
   ghostErosion,
@@ -167,7 +167,10 @@ export function createAfterimages(params, runner) {
    * so a frozen scene produces an identical frame without any epsilon tuning.
    */
   afterimages.update = function update(simTime, r) {
-    if (emitsGhosts(params.sprintFx)) {
+    // Not emitsGhosts: a hand-jet glide pauses new captures, and the pause
+    // lives in logic.js beside the mode gates rather than as a second
+    // condition here that the limb ribbons would have to duplicate.
+    if (ghostsEmitNow(params.sprintFx, params.glideFx, r.vertical?.mode)) {
       if (
         shouldSnapshot(
           lastSnap,
