@@ -61,6 +61,32 @@ first pass used 2.5 rad and put the arms over the head; the tell was the hand po
 measuring *above* the runner's head in world space, which is the kind of thing the code
 reads as fine and the geometry does not.
 
+**Revised (#27): ribbon ownership is per-ribbon, and the chest trail was the leak.**
+The first pass paused "the limb streaks" as a group and never touched the CHEST trail,
+which has no glide awareness at all — so through the whole hover it kept drawing a ribbon
+off the runner's back, which is exactly what reads as "a streak coming out the back". The
+mode had removed the wrong ribbons: the two that should have been running (hands) were
+paused, and the one that should have stopped (chest) was not.
+
+Ribbon ownership during a hands-glide:
+
+| ribbon | hands-glide | why |
+| --- | --- | --- |
+| chest | **off** | it is the streak-out-the-back; the jet replaces it |
+| hands (0, 1) | **on** | the jet's own ribbons — this is the effect |
+| feet (2, 3) | **off** | the legs are held still; a ribbon off a static foot is a smear |
+
+Two consequences worth naming. The hand ribbons take the same **bypass** as the plume
+gate (`handStreaksEmitNow`): the glide look is chosen by `glideFx`, so it must not depend
+on `sprintFx` — but the explicit `limbStreaks === false` toggle still wins, because that
+is the user turning ribbons off rather than a mode implying it. And they also bypass the
+`dissolve > 0.02` **sprint-glow** test, for the same reason `emissionRate` floors the jet:
+a hover is not a sprint, so at low glide speed dissolve sits near zero and the palms would
+draw nothing at exactly the moment the jet is firing hardest.
+
+The legs are held at fixed angles too (`GLIDE_HIP`, `GLIDE_KNEE`), symmetric rather than
+frozen mid-stride — a running cycle under a hover reads as pedalling in mid-air.
+
 **Status of alternatives:** separate emitter — `rejected — a second spawn path for two
 engines to keep in step, which is the failure spawnComputation.js exists to prevent`.
 

@@ -9,6 +9,8 @@ import {
   glideHands,
   ghostsEmitNow,
   limbStreaksEmitNow,
+  chestTrailEmitNow,
+  handStreaksEmitNow,
   shouldSnapshot,
   ghostStrength,
   ghostErosion,
@@ -84,6 +86,36 @@ describe('glide FX gates', () => {
     // The pause is a subtraction. It must not become a source of its own.
     expect(ghostsEmitNow('plume', 'streak', 'ground')).toBe(false);
     expect(ghostsEmitNow('plume', 'hands', 'glide')).toBe(false);
+  });
+
+  it('silences the chest ribbon during a hand-jet glide', () => {
+    // The reported bug: the chest trail has no glide awareness, so it kept
+    // drawing a ribbon off the runner's back through the whole hover — which
+    // reads as a streak trailing out behind, the thing the jet replaces.
+    expect(chestTrailEmitNow('hands', 'glide')).toBe(false);
+    expect(chestTrailEmitNow('hands', 'ground')).toBe(true);
+    expect(chestTrailEmitNow('hands', 'air')).toBe(true);
+    expect(chestTrailEmitNow('streak', 'glide')).toBe(true);
+  });
+
+  it('runs the hand ribbons during a hand-jet glide whatever the sprint FX says', () => {
+    // Same bypass as the plume gate, and for the same reason: the glide look is
+    // chosen by glideFx, so it must not silently depend on the sprint setting.
+    expect(handStreaksEmitNow('plume', true, 'hands', 'glide')).toBe(true);
+    expect(handStreaksEmitNow('afterimages', true, 'hands', 'glide')).toBe(true);
+    expect(handStreaksEmitNow('both', true, 'hands', 'glide')).toBe(true);
+  });
+
+  it('still lets the user switch limb ribbons off entirely', () => {
+    // The explicit toggle outranks the mode — that is the user's choice, not a
+    // side effect of picking a glide look.
+    expect(handStreaksEmitNow('both', false, 'hands', 'glide')).toBe(false);
+  });
+
+  it('leaves the hand ribbons on the normal gate outside a hands-glide', () => {
+    expect(handStreaksEmitNow('plume', true, 'hands', 'ground')).toBe(false);
+    expect(handStreaksEmitNow('both', true, 'hands', 'ground')).toBe(true);
+    expect(handStreaksEmitNow('both', true, 'streak', 'glide')).toBe(true);
   });
 
   it('pauses the limb ribbons on exactly the same condition', () => {

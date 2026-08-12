@@ -16,6 +16,7 @@ import { createParticleSystem } from './particles/ParticleSystem.js';
 import { createGpuEngine } from './particles/GpuEngine.js';
 import { createTrail } from './trail/Trail.js';
 import { createAfterimages } from './afterimages/Afterimages.js';
+import { chestTrailEmitNow } from './afterimages/logic.js';
 import { createLimbStreaks } from './trail/LimbStreaks.js';
 import { createGame } from './game/Game.js';
 import { createPost } from './post.js';
@@ -49,7 +50,13 @@ const gpuEngine = createGpuEngine(params, renderer);
 scene.add(gpuEngine.mesh);
 scene.add(gpuEngine.smokeMesh);
 
-const trail = createTrail(params);
+// The chest ribbon pauses for a hand-jet glide: it had no idea a glide was
+// happening, so it kept drawing off the runner's back through the whole hover,
+// which reads as a streak trailing out behind — the thing the jet replaces.
+const trail = createTrail(params, {
+  shouldEmit: (runner) =>
+    chestTrailEmitNow(params.glideFx, runner.vertical?.mode) && runner.dissolve > 0.02,
+});
 trail.mesh.renderOrder = 1; // additive systems composite over the smoke layer
 scene.add(trail.mesh);
 

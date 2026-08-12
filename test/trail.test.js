@@ -157,3 +157,63 @@ describe('limb streaks', () => {
     expect(s.samples).toBe(0);
   });
 });
+
+describe('a hand-jet glide moves the ribbons to the hands', () => {
+  // The reported bug: during a hands-glide the only ribbon still drawing was
+  // the CHEST one, so the effect read as a streak trailing out of the runner's
+  // back rather than light coming off the palms.
+  const gliding = (dissolve = 1) => ({ ...runnerAt(0, 20, 0, dissolve), vertical: { mode: 'glide' } });
+  const grounded = (dissolve = 1) => ({ ...runnerAt(0, 0, 0, dissolve), vertical: { mode: 'ground' } });
+
+  /** Walk a runner along +x so each ribbon clears its own minimum-step test. */
+  function drive(streaks, make, frames = 6) {
+    for (let k = 0; k < frames; k++) {
+      const r = make();
+      r.position.x = k * 2;
+      for (const p of r.streakPoints) p.x += k * 2;
+      streaks.update(k * 0.1, r);
+    }
+  }
+
+  it('draws from the hands and not the feet while gliding', () => {
+    const p = { ...PARAMS(), glideFx: 'hands' };
+    const s = createLimbStreaks(p);
+    drive(s, gliding);
+    const counts = s.ribbons.map((r) => r.samples.length);
+    expect(counts[0]).toBeGreaterThan(0); // left hand
+    expect(counts[1]).toBeGreaterThan(0); // right hand
+    expect(counts[2]).toBe(0); // left foot
+    expect(counts[3]).toBe(0); // right foot
+  });
+
+  it('keeps the hand ribbons alive in a slow hover, where dissolve is zero', () => {
+    // dissolve is a SPRINT-glow test and a hover is not a sprint. emissionRate
+    // already floors the jet for this reason; without the same treatment the
+    // palms would draw nothing exactly when the jet is firing hardest.
+    const p = { ...PARAMS(), glideFx: 'hands' };
+    const s = createLimbStreaks(p);
+    drive(s, () => gliding(0));
+    expect(s.ribbons[0].samples.length).toBeGreaterThan(0);
+  });
+
+  it('draws from the hands even when the sprint FX wants no ghosts', () => {
+    const p = { ...PARAMS(), sprintFx: 'plume', glideFx: 'hands' };
+    const s = createLimbStreaks(p);
+    drive(s, gliding);
+    expect(s.ribbons[0].samples.length).toBeGreaterThan(0);
+  });
+
+  it('leaves all four ribbons on the normal gate in streak mode', () => {
+    const p = { ...PARAMS(), glideFx: 'streak' };
+    const s = createLimbStreaks(p);
+    drive(s, gliding);
+    expect(s.ribbons.every((r) => r.samples.length > 0)).toBe(true);
+  });
+
+  it('does not change grounded behaviour', () => {
+    const p = { ...PARAMS(), glideFx: 'hands' };
+    const s = createLimbStreaks(p);
+    drive(s, grounded);
+    expect(s.ribbons.every((r) => r.samples.length > 0)).toBe(true);
+  });
+});
