@@ -1,5 +1,5 @@
 import { createTrail } from './Trail.js';
-import { limbStreaksEmitNow } from '../afterimages/logic.js';
+import { limbStreaksEmitNow, handStreaksEmitNow, glideHands } from '../afterimages/logic.js';
 
 // The long light streaks that trail off the hands and feet during an afterimage
 // sprint.
@@ -20,9 +20,21 @@ export function createLimbStreaks(params) {
         out.set(p.x, p.y, p.z);
       },
       getWidth: () => params.trailWidth * params.limbStreakWidth,
-      shouldEmit: (runner) =>
-        limbStreaksEmitNow(params.sprintFx, params.limbStreaks, params.glideFx, runner.vertical?.mode) &&
-        runner.dissolve > 0.02,
+      // Ribbons 0 and 1 are the HANDS, 2 and 3 the feet — the streakTips order
+      // in runner.js. During a hand-jet glide the hands are the only ribbons
+      // that run, so the two halves take different gates; everywhere else both
+      // resolve identically.
+      shouldEmit: (runner) => {
+        const mode = runner.vertical?.mode;
+        const isHand = i < 2;
+        const gate = isHand ? handStreaksEmitNow : limbStreaksEmitNow;
+        if (!gate(params.sprintFx, params.limbStreaks, params.glideFx, mode)) return false;
+        // The dissolve gate is a SPRINT-glow test, and a hover is not a sprint:
+        // at a slow glide speed dissolve sits near zero, which would leave the
+        // palms drawing nothing while the jet itself is firing. emissionRate
+        // already floors the jet for this exact reason — the ribbons follow.
+        return (isHand && glideHands(params.glideFx, mode)) || runner.dissolve > 0.02;
+      },
       // Always visible. When a mode switch stops emission the existing samples
       // age out over trailFade instead of vanishing in one frame.
       getVisible: () => true,

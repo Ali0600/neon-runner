@@ -29,6 +29,9 @@ import { glideHands } from './afterimages/logic.js';
 const THRUST_SHOULDER = 0.3;
 const THRUST_ELBOW = -0.18; // rad — very slightly bent, not locked
 const THRUST_SPLAY = 0.34; // rad, rotation.z — hands pushed out from the body
+// The legs hold still too: a slight trailing angle, knees just off straight.
+const GLIDE_HIP = 0.12;
+const GLIDE_KNEE = 0.2;
 
 const ACCEL = 9.0; // response rate toward target velocity
 const BOUND = 180; // keep the runner inside the ground plane
@@ -468,17 +471,29 @@ export function createRunner(params, city = []) {
     const gait = Math.min(1, runner.speed / WALK_SPEED) * airborneGait;
     const amp = (0.55 + runner.dissolve * 0.5) * gait;
 
-    legL.hip.rotation.x = Math.sin(p) * amp;
-    legR.hip.rotation.x = Math.sin(p + Math.PI) * amp;
-    // Knees only bend one way; the negative half of the sine is clamped off.
-    legL.knee.rotation.x = Math.max(0, -Math.sin(p - 0.6)) * amp * 1.5;
-    legR.knee.rotation.x = Math.max(0, -Math.sin(p + Math.PI - 0.6)) * amp * 1.5;
+    // A hand-jet glide holds the WHOLE figure still, legs included: the runner
+    // is being carried, and a running cycle underneath a hover reads as pedalling
+    // in mid-air. Both legs take the same trailing angle, so the pose is
+    // symmetric rather than caught mid-stride.
+    const handsGlide = glideHands(params.glideFx, runner.vertical.mode);
+    if (handsGlide) {
+      legL.hip.rotation.x = GLIDE_HIP;
+      legR.hip.rotation.x = GLIDE_HIP;
+      legL.knee.rotation.x = GLIDE_KNEE;
+      legR.knee.rotation.x = GLIDE_KNEE;
+    } else {
+      legL.hip.rotation.x = Math.sin(p) * amp;
+      legR.hip.rotation.x = Math.sin(p + Math.PI) * amp;
+      // Knees only bend one way; the negative half of the sine is clamped off.
+      legL.knee.rotation.x = Math.max(0, -Math.sin(p - 0.6)) * amp * 1.5;
+      legR.knee.rotation.x = Math.max(0, -Math.sin(p + Math.PI - 0.6)) * amp * 1.5;
+    }
 
     // In a hand-jet glide the arms stop swinging and hold a thrust pose, so the
     // light pouring from the palms reads as the thing holding the runner up
     // rather than as something leaking off a figure that happens to be running.
     // The legs keep their damped cycle — a completely rigid figure reads dead.
-    if (glideHands(params.glideFx, runner.vertical.mode)) {
+    if (handsGlide) {
       armL.shoulder.rotation.x = THRUST_SHOULDER;
       armR.shoulder.rotation.x = THRUST_SHOULDER;
       armL.shoulder.rotation.z = -THRUST_SPLAY;
@@ -496,7 +511,8 @@ export function createRunner(params, city = []) {
       armR.elbow.rotation.x = -(0.5 + Math.sin(p + Math.PI) * 0.35) * gait;
     }
 
-    body.position.y = Math.abs(Math.sin(p)) * 0.06 * gait;
+    // No bob during a hand-jet glide — nothing is pushing off the ground.
+    body.position.y = handsGlide ? 0 : Math.abs(Math.sin(p)) * 0.06 * gait;
     body.rotation.x = -runner.dissolve * 0.42 * gait; // lean into the sprint
 
     // World-space emitter points, read by the particle system this same frame.

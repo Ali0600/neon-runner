@@ -8,7 +8,7 @@ imported with `?raw`.
 
 ```
 npm run dev      # http://localhost:5173
-npm test         # vitest, 263 tests
+npm test         # vitest, 279 tests
 npm run build    # production build
 npm run sabotage # mutation harness — proves the tests bite (~35s)
 ```
@@ -109,6 +109,14 @@ believing the failure. That has been the actual cause more often than the code h
 
 ## Conventions
 
+**`runner.js` is unit-testable too**, despite importing three and four `.glsl?raw` files —
+vitest resolves all of it (`test/runnerPose.test.js` asserts joint rotations and hand
+positions with no renderer). Two traps: `params.js` reads `window.devicePixelRatio` at
+module load so it cannot be imported — build a params fixture inline; and `runner.update()`
+runs the FSM, so seeding `runner.vertical = { mode: 'glide' }` is not enough — pass
+`input.jump = true` or the glide releases to `air` on that same frame and the test drives
+the wrong pose while claiming to test a glide.
+
 **The follow rig is unit-testable too**, even though it imports three: `test/cameraRig.test.js`
 builds a real `PerspectiveCamera` and `createCameraRig(camera, [])` under vitest, feeds a
 fake runner, and steps until the position stops changing (bounded). Pass an empty city so
@@ -145,7 +153,7 @@ behaviour before trusting it. When sabotaging a file to prove a test bites, chec
 before and after so the restore is provably clean, and never use `git checkout` to undo a
 sabotage on uncommitted work.
 
-`npm run sabotage` (`scripts/sabotage.mjs`) does that mechanically: 58 cases, each
+`npm run sabotage` (`scripts/sabotage.mjs`) does that mechanically: 64 cases, each
 reintroducing one defect and asserting the specific test written to guard it goes red.
 **Add a case whenever you add a guard**, and run it before opening a PR — it is not in CI
 because it runs the suite once per case.

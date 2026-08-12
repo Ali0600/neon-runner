@@ -81,9 +81,36 @@ export function ghostsEmitNow(sprintFx, glideFx, verticalMode) {
   return emitsGhosts(sprintFx) && !glideHands(glideFx, verticalMode);
 }
 
-/** Same pause, for the four limb ribbons. */
+/** Same pause, for the FEET ribbons — and for the hands outside a hands-glide. */
 export function limbStreaksEmitNow(sprintFx, limbStreaks, glideFx, verticalMode) {
   return limbStreaksActive(sprintFx, limbStreaks) && !glideHands(glideFx, verticalMode);
+}
+
+/**
+ * Should the CHEST ribbon emit? It pauses for a hands-glide.
+ *
+ * The chest trail has no idea a glide is happening, so it kept drawing its
+ * ribbon from the runner's back through the whole hover — which reads as a
+ * streak trailing out behind, exactly the thing the hand-jet is supposed to
+ * replace. Only new samples stop; the existing ones age out over trailFade.
+ */
+export function chestTrailEmitNow(glideFx, verticalMode) {
+  return !glideHands(glideFx, verticalMode);
+}
+
+/**
+ * Should the two HAND ribbons emit? The mirror image of the pause above.
+ *
+ * During a hands-glide these are the only ribbons that run, and they run
+ * regardless of what `sprintFx` wants — the same bypass, and for the same
+ * reason, as the plume gate in `emissionRate`: the glide look is chosen by
+ * `glideFx`, so it must not silently depend on the sprint setting. The explicit
+ * `limbStreaks === false` toggle still wins, because that is the user turning
+ * ribbons off rather than a mode implying it.
+ */
+export function handStreaksEmitNow(sprintFx, limbStreaks, glideFx, verticalMode) {
+  if (glideHands(glideFx, verticalMode)) return limbStreaks !== false;
+  return limbStreaksEmitNow(sprintFx, limbStreaks, glideFx, verticalMode);
 }
 
 // --- cadence ---------------------------------------------------------------

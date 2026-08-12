@@ -175,6 +175,49 @@ const CASES = [
     expect: 'narrows the spawn set to the two hands in a hand-jet glide',
   },
 
+  {
+    name: 'glidefx: let the chest ribbon keep streaking out the back',
+    file: 'src/afterimages/logic.js',
+    find: '  return !glideHands(glideFx, verticalMode);',
+    repl: '  return true;',
+    expect: 'silences the chest ribbon during a hand-jet glide',
+  },
+  {
+    name: 'glidefx: hand ribbons obey the sprint FX instead of the glide',
+    file: 'src/afterimages/logic.js',
+    find: '  if (glideHands(glideFx, verticalMode)) return limbStreaks !== false;',
+    repl: '',
+    expect: 'runs the hand ribbons during a hand-jet glide whatever the sprint FX says',
+  },
+  {
+    name: 'glidefx: ignore the limb-streak toggle in a hands-glide',
+    file: 'src/afterimages/logic.js',
+    find: '  if (glideHands(glideFx, verticalMode)) return limbStreaks !== false;',
+    repl: '  if (glideHands(glideFx, verticalMode)) return true;',
+    expect: 'still lets the user switch limb ribbons off entirely',
+  },
+  {
+    name: 'glidefx: gate the hand ribbons on the sprint glow in a hover',
+    file: 'src/trail/LimbStreaks.js',
+    find: '        return (isHand && glideHands(params.glideFx, mode)) || runner.dissolve > 0.02;',
+    repl: '        return runner.dissolve > 0.02;',
+    expect: 'keeps the hand ribbons alive in a slow hover',
+  },
+  {
+    name: 'glidefx: run the feet ribbons off the hand gate too',
+    file: 'src/trail/LimbStreaks.js',
+    find: '        const gate = isHand ? handStreaksEmitNow : limbStreaksEmitNow;',
+    repl: '        const gate = handStreaksEmitNow;',
+    expect: 'draws from the hands and not the feet while gliding',
+  },
+  {
+    name: 'glidefx: keep the legs cycling through a hands-glide',
+    file: 'src/runner.js',
+    find: '      legL.hip.rotation.x = GLIDE_HIP;',
+    repl: '      legL.hip.rotation.x = Math.sin(p) * amp;',
+    expect: 'holds the legs still during a hand-jet glide',
+  },
+
   // --- src/camera.js -------------------------------------------------------
   {
     name: 'camera: stop lifting the rig while gliding',
@@ -468,9 +511,8 @@ const CASES = [
   {
     name: 'streaks: emit in every sprint FX mode',
     file: 'src/trail/LimbStreaks.js',
-    find:
-      '        limbStreaksEmitNow(params.sprintFx, params.limbStreaks, params.glideFx, runner.vertical?.mode) &&\n        runner.dissolve > 0.02,',
-    repl: '        runner.dissolve > 0.02,',
+    find: '        if (!gate(params.sprintFx, params.limbStreaks, params.glideFx, mode)) return false;',
+    repl: '',
     expect: 'emits only when the sprint FX mode wants ghosts',
   },
   {

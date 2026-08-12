@@ -83,9 +83,12 @@ Two things worth knowing, because neither is obvious from the panel:
   independently of the sprint. **hands** (the default) fires the jet out of the
   **palms** and holds the arms in a thrust pose, so the light reads as the thing
   keeping you up rather than something leaking off a figure that happens to be
-  falling — and it pauses new afterimages and limb streaks for the duration,
-  since a chain streaking off the body competes with the jet for the same
-  silhouette. Ghosts already in the air finish their fade rather than popping.
+  falling. The whole figure holds still — arms in a thrust pose, legs at a fixed
+  trailing angle, since a running cycle under a hover reads as pedalling in
+  mid-air — and the ribbons move to the palms: the chest trail and the foot
+  streaks go quiet, the two **hand** ribbons run, so the light trails from where
+  it is coming out rather than off your back. New afterimage captures pause too;
+  ghosts already in the air finish their fade rather than popping.
   **streak** keeps whatever the sprint FX was doing. Note the interaction the
   default forces: `afterimages` stops the plume *at its source*, and the jet is
   made of plume particles, so hands mode bypasses that gate — narrowly, only
