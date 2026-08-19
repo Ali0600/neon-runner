@@ -13,6 +13,11 @@ npm run build    # production build
 npm run sabotage # mutation harness — proves the tests bite (~35s)
 ```
 
+`vite.config.js` sets `strictPort: true` on 5173, so the dev server refuses to start if
+anything else holds that port (another project of the user's did, this session) — it will
+not fall back. Verify on another port with `npm run dev -- --port 5199` rather than killing
+whatever owns 5173.
+
 ## The freeze invariant — a hard gate
 
 **At `params.timeScale = 0`, two consecutively rendered frames must be bit-identical,
@@ -103,6 +108,26 @@ indistinguishable from a real regression. Assert non-degenerate dimensions and a
 long enough to be an image, and throw rather than return a verdict. Related: an
 `EffectComposer` sized while the viewport was degenerate keeps clipping to the old size
 until a `resize` event fires.
+
+**SCOPE is ON by default, and in scope mode there are no walls.** `runner.js` reads
+`const face = inScope ? null : nearestFace(...)`, so a wall-run cannot be set up until you
+set `params.scope = false` and `applyParams()`. Symptom: `runner.wallNormal` stays null and
+the FSM drops straight to `air` no matter where you place the runner — which reads exactly
+like the mount logic being broken. Cost several rounds before the boot default was the
+thing that had changed.
+
+**Reset `runner.velocity` when you reposition the runner in a harness.** `position.set()`
+alone leaves the previous run's velocity, which on the next step shoves the figure off
+whatever face you just placed it against. The tell is a runner that starts on a wall and
+is in `air` by frame 0.
+
+**A strafe's world direction depends on the CAMERA, not the runner.** `main.js` passes
+`rig.yaw + input.orbitYaw` as `cameraYaw`, and the rig starts at `PI`. Whether `press('r')`
+slides along a face or straight into it is decided by that angle — at the default yaw it
+points into the +x face and is correctly projected to nothing, which looks identical to
+"sliding is broken". Set `input.orbitYaw = <wanted> - rig.yaw` to aim it, and pick buildings
+near the origin: the far skyline band sits at the +-180 world bound where most faces are
+unreachable.
 
 More generally: when a check fails, confirm the instrument can report success before
 believing the failure. That has been the actual cause more often than the code has.
