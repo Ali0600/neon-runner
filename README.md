@@ -21,6 +21,7 @@ Then open http://localhost:5173. The panel on the right retunes everything live.
 | **hold Shift** | sprint — the runner dissolves and emission spikes |
 | **Space** | jump |
 | **hold Space** at a wall, while running | run straight up the building, crest onto the roof |
+| **A / D** while climbing | slide along the face — steer the climb into a diagonal |
 | **hold Space** while falling | glide — the descent caps at a slow sink and a neon jet fires downward |
 | **drag** | orbit the camera (follow view only; SCOPE is locked side-on) |
 | **T** | fire one SCOPE event immediately, to watch a single transient |
@@ -59,7 +60,13 @@ Two things worth knowing, because neither is obvious from the panel:
 - **Jump, and the neon wall-run.** Tap Space to jump; hold it while running at a
   building and the runner goes **straight up the wall** at 20 u/s — faster than
   its own sprint — crests over the lip and lands on the roof, where it can keep
-  running until it steps off an edge. Modelled on *Second Son*'s Light Speed,
+  running until it steps off an edge. **You can steer the climb**: strafing
+  slides the runner along the face at up to 10 u/s, so a climb can cut a
+  diagonal across a building instead of a straight vertical line. The velocity
+  is projected onto the plane of the wall rather than zeroed, so steering into
+  the face does nothing and steering away cannot pull you off — releasing Space
+  is still the only way down. Reaching a corner stops the slide and leaves you
+  climbing. Modelled on *Second Son*'s Light Speed,
   which turns vertical without slowing down. The whole vertical axis is a
   four-state machine in a dependency-free module, so every transition is unit
   tested, and it advances only on the sim clock — at `timeScale = 0` a runner

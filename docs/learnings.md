@@ -553,3 +553,24 @@ actually *draws* — read the fragment shader, not the data model. And when a
 comment justifies a constant ("low, so the figure is nearly complete"), check
 whether the mechanism it reasons about still exists: this one was written before
 the eroded matter was conserved as particles, and outlived the world it described.
+
+## A zero-assignment before an exponential lerp is a leak, not a lock
+
+Setting a value to zero every frame does not hold it at zero, if something eases
+that value toward a target on the *next* frame.
+
+**Why it came up:** the wall climb pinned `velocity.x/z = 0` while attached, and
+the comment explaining it read like a solid constraint. It was not. The velocity
+lerp restarts from whatever the previous frame left, so a held strafe key still
+got one frame of `ACCEL` easing through before being wiped — `1 - exp(-9/60)`,
+about 14%. Measured against the old code, the runner slid **1.95 units** in a
+second on a commanded 14. The user's report was "too stiff", which is exactly
+what a seventh-speed creep feels like from the outside, and it was easy to read
+the code as "steering is disabled" and reach for a new feature instead.
+
+**Takeaway:** when a value is both clamped and eased, the clamp does not win — it
+sets the starting point for the next ease, and the result is a slow drift rather
+than the stillness the code appears to promise. If you want a constraint, express
+it as one the ease cannot escape (here, projecting onto the plane of the wall,
+which is idempotent) rather than as a per-frame reset. And before building on
+"this is disabled", measure how far it actually moves in a second.

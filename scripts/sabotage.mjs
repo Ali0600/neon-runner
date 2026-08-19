@@ -218,6 +218,47 @@ const CASES = [
     expect: 'holds the legs still during a hand-jet glide',
   },
 
+  // --- wall steering -------------------------------------------------------
+  {
+    name: 'wallsteer: drop the pre-integration projection',
+    file: 'src/runner.js',
+    find: "    if (runner.vertical.mode === 'wall' && runner.wallNormal) {",
+    repl: "    if (runner.vertical.mode === 'wall' && runner.wallNormal && false) {",
+    expect: 'cannot be pulled off the face by steering away from it',
+  },
+  {
+    name: 'wallsteer: restore the old zero-pin (the stiff climb)',
+    file: 'src/runner.js',
+    // Anchored on the `else if` that follows, because the same wallSlideVelocity
+    // call appears twice in this file and an unanchored pattern would sabotage
+    // the pre-integration one while reporting on this branch.
+    find:
+      '      runner.velocity.x = slid.vx;\n      runner.velocity.z = slid.vz;\n    } else if (v.mode === \'wall\') {',
+    repl: "      runner.velocity.x = 0;\n      runner.velocity.z = 0;\n    } else if (v.mode === 'wall') {",
+    expect: 'slides along the face when steered',
+  },
+  {
+    name: 'wallsteer: keep the component pointing into the wall',
+    file: 'src/vertical.js',
+    find: '  const dot = vx * nx + vz * nz;',
+    repl: '  const dot = 0;',
+    expect: 'drops velocity pushed straight into the wall',
+  },
+  {
+    name: 'wallsteer: drop the lateral clamp',
+    file: 'src/vertical.js',
+    find: '  if (speed > cap) {',
+    repl: '  if (false) {',
+    expect: 'clamps the slide so a diagonal climb stays a climb',
+  },
+  {
+    name: 'wallsteer: let the camera re-aim during a climb',
+    file: 'src/camera.js',
+    find: "    const onWall = runner.vertical?.mode === 'wall';",
+    repl: '    const onWall = false;',
+    expect: 'does not re-aim while attached to a wall',
+  },
+
   // --- src/camera.js -------------------------------------------------------
   {
     name: 'camera: stop lifting the rig while gliding',

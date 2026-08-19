@@ -41,7 +41,14 @@ export function createCameraRig(camera, city = []) {
     // compass direction and end up inside the building. Holding the last
     // heading keeps the camera where it was when the runner hit the wall,
     // which is behind them, looking up the face.
-    if ((runner.groundSpeed ?? runner.speed) > 1.0) {
+    // Attached to a wall the heading is HELD, whatever the horizontal speed.
+    // The climb used to have no horizontal velocity at all, so this gate could
+    // not fire; now a strafe along the face carries real speed, and re-aiming on
+    // it would swing the camera to look ALONG the building instead of up it —
+    // the same "camera ends up somewhere useless mid-climb" failure the comment
+    // above describes, arrived at from the other direction.
+    const onWall = runner.vertical?.mode === 'wall';
+    if (!onWall && (runner.groundSpeed ?? runner.speed) > 1.0) {
       const behind = Math.atan2(runner.velocity.x, runner.velocity.z) + Math.PI;
       let delta = behind - rig.yaw;
       delta = Math.atan2(Math.sin(delta), Math.cos(delta));

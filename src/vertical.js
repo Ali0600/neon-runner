@@ -140,3 +140,46 @@ export function stepVertical(s, i) {
 
   return { mode: 'ground', y: i.supportY, vy: 0, wallTop: s.wallTop, event: null };
 }
+
+/**
+ * Project a horizontal velocity onto the plane of a wall face.
+ *
+ * The component along the face normal is removed — pushing INTO a wall cannot
+ * move you through it, and pulling AWAY from one is what the jump key already
+ * means (release to drop), so neither belongs in the slide. What survives is the
+ * tangent: sliding sideways across the face, clamped so a diagonal climb stays a
+ * climb rather than a sprint that happens to be vertical.
+ *
+ * Replaces an outright `velocity.x = velocity.z = 0` pin. That pin was not
+ * actually a pin: the velocity lerp restarts from zero every frame, so a held
+ * strafe key still leaked one frame of easing through (~14% of ACCEL) and the
+ * runner crept sideways at a seventh of the commanded speed. Stiff, not still.
+ *
+ * Pure scalars, no dt and no easing, so it cannot break the freeze invariant.
+ *
+ * @param {number} vx  horizontal velocity, x
+ * @param {number} vz  horizontal velocity, z
+ * @param {number} nx  face normal, x (unit, or a snapped corner normal)
+ * @param {number} nz  face normal, z
+ * @param {number} maxLateral  clamp on the resulting speed along the face
+ * @returns {{vx: number, vz: number}}
+ */
+export function wallSlideVelocity(vx, vz, nx, nz, maxLateral) {
+  // Remove the normal component. `dot` is signed, so this handles pushing into
+  // the wall and pulling away from it in one expression.
+  const dot = vx * nx + vz * nz;
+  let tx = vx - dot * nx;
+  let tz = vz - dot * nz;
+
+  const speed = Math.hypot(tx, tz);
+  const cap = Math.max(0, maxLateral);
+  if (speed > cap) {
+    // Guard the zero-length case explicitly: speed > cap with cap >= 0 already
+    // implies speed > 0, but reading that off two comparisons is exactly the
+    // kind of thing that stops being true when someone edits one of them.
+    const k = speed > 0 ? cap / speed : 0;
+    tx *= k;
+    tz *= k;
+  }
+  return { vx: tx, vz: tz };
+}

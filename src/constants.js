@@ -43,3 +43,13 @@ export const GLIDE_MIN_FALL_SPEED = 1.0;
 // climb, the crest and the fall back down all fit inside one scheduled segment,
 // which is what makes the whole move inspectable in a single pass.
 export const SCOPE_WALL_TOP = 22.0;
+
+// --- wall steering ---------------------------------------------------------
+// How fast the runner can slide ALONG a face while climbing it. Half the climb
+// speed, so holding a strafe key traces roughly a 27-degree diagonal up the
+// building rather than a vertical line.
+//
+// The climb used to pin horizontal velocity to zero outright, which read as
+// stiff: the velocity lerp restarts from zero every frame, so a held key only
+// ever got one frame of ACCEL easing (~14%) through before being wiped.
+export const WALL_LATERAL_SPEED = 10.0;

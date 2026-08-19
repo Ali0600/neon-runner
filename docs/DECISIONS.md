@@ -6,6 +6,10 @@
   controls. *Revisit hook:* `src/post.js` is the only file that knows about the
   composer; its `{ render, setSize, applyParams }` shape is the seam.
 - **Heat-shimmer trail for smoke style** (D13) — needs a refraction post pass.
+- **Steer away to peel off a wall** (D41) — let a deliberate push away from the
+  face drop the runner, instead of only releasing the key. *Revisit hook:* the
+  normal-component removal in `wallSlideVelocity` (`src/vertical.js`); it needs a
+  threshold, or a stray back-tap rips you off mid-climb.
 - **Forward-carrying glide** (D39) — trade height for distance instead of the
   hover's constant sink, so a roof jump covers ground like a wingsuit.
   *Revisit hook:* the `gliding` branch in `src/vertical.js`; it would add a
@@ -15,6 +19,52 @@
   and drives them in one block.
 
 ---
+
+## D41 — Steering on a wall projects onto the face, it does not zero
+
+**Fork:** climbing felt stiff — the runner could barely be steered along a building.
+
+The cause was not a missing feature. `runner.js` pinned `velocity.x/z = 0` every frame
+while attached, and its comment justified that: *"steering while attached slides the
+runner along the wall and off its edge partway up, which reads as the climb failing."*
+
+But the pin was never actually a pin. The velocity lerp restarts from whatever the last
+frame left, so zeroing it meant a held strafe key got exactly **one frame** of `ACCEL`
+easing before being wiped — `1 - exp(-9/60)` ≈ 14%. Measured with the old code in place:
+**1.95 units** of lateral travel in a second, against a commanded 14. So the climb was
+never rigid; it crept, which is precisely what "too stiff" describes from the outside.
+
+- *Leave the zero-pin and add a separate strafe term:* a second velocity path on the same
+  axis, with the pin still fighting it every frame.
+- *Project the velocity onto the plane of the face.*
+
+**Chosen:** the projection (`wallSlideVelocity` in `vertical.js` — pure scalars, no dt, no
+easing, so freeze safety is unchanged). The component along the face normal is removed and
+the tangent survives, clamped to `WALL_LATERAL_SPEED` (10, half the climb speed, so a held
+strafe traces roughly a 27° diagonal). Measured after: **9.53 units** in the same second,
+with the distance to the face drifting by **exactly 0**.
+
+Removing the normal component keeps everything the old comment was worried about: you
+still cannot push through the wall, and you cannot be pulled off it by steering away —
+releasing the key is still the only way down. Peeling off by steering is a separate move,
+deliberately not built.
+
+**It runs at TWO sites, and they guard different things.** The post-FSM projection is what
+lets the slide accumulate across frames; the pre-integration one is what stops the runner
+drifting off the face, because it fixes the velocity *before* the position moves on it.
+The mutation harness proved this: sabotaging the pre-integration site leaves the slide
+working perfectly and only fails the pulled-off-the-face test.
+
+**A corner stops the slide, by construction.** Reaching one snaps the face normal to the
+next side, and the velocity that was tangent to the old face is entirely normal to the new
+one — so it projects to zero. The runner stays attached and keeps climbing. This is pinned
+by a test, and it is also why the slide-speed test needs a long face: on a short building
+the measurement reports the corner distance instead of the speed, which a first pass did.
+
+**Status of alternatives:** separate strafe term — `rejected — a second writer on the same
+axis with the pin still fighting it`. *Steer away to peel off the wall* —
+`deferred — worth trying`; it needs a deliberate threshold or a stray back-tap rips you off
+the building. *Revisit hook:* the normal-component removal in `wallSlideVelocity`.
 
 ## D40 — The hand-jet glide bypasses the plume gate, and pauses the chain
 

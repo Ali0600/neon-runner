@@ -10,10 +10,11 @@ import {
   WALL_REACH,
   CREST_INSET,
   SCOPE_WALL_TOP,
+  WALL_LATERAL_SPEED,
 } from './constants.js';
 import { resolveTargetSpeed } from './speed.js';
 import { slideXZ, nearestFace, groundHeightAt } from './city.js';
-import { stepVertical, initialVertical } from './vertical.js';
+import { stepVertical, initialVertical, wallSlideVelocity } from './vertical.js';
 import { glideHands } from './afterimages/logic.js';
 
 // The hand-jet thrust pose. Shoulders swept back and down, elbows near straight,
@@ -330,6 +331,23 @@ export function createRunner(params, city = []) {
       runner.velocity.z = 0;
     }
 
+    // Attached to a face: slide ALONG it rather than into or away from it. This
+    // has to happen before the integration below, or the frame moves on a
+    // velocity the wall would not have allowed. `runner.vertical` is still last
+    // frame's state here, which is the right one to ask — it is the wall we are
+    // currently on, and `wallNormal` is the face it belongs to.
+    if (runner.vertical.mode === 'wall' && runner.wallNormal) {
+      const slid = wallSlideVelocity(
+        runner.velocity.x,
+        runner.velocity.z,
+        runner.wallNormal.nx,
+        runner.wallNormal.nz,
+        WALL_LATERAL_SPEED
+      );
+      runner.velocity.x = slid.vx;
+      runner.velocity.z = slid.vz;
+    }
+
     group.position.x += runner.velocity.x * simDt;
     group.position.z += runner.velocity.z * simDt;
     if (mode === 'scope') {
@@ -398,9 +416,27 @@ export function createRunner(params, city = []) {
     group.position.y = v.y;
     runner.velocity.y = v.vy;
 
-    if (v.mode === 'wall') {
-      // Pin to the face. Steering while attached slides the runner along the
-      // wall and off its edge partway up, which reads as the climb failing.
+    if (v.mode === 'wall' && runner.wallNormal) {
+      // Project onto the face rather than zeroing. The old zero-pin was never
+      // really a pin: the velocity lerp restarts from zero every frame, so a
+      // held strafe key still leaked ~14% of one frame's easing through and the
+      // runner crept sideways at a seventh of the commanded speed — which is
+      // what read as stiff. Projecting lets the lerp accumulate across frames up
+      // to WALL_LATERAL_SPEED, while the normal component stays removed so the
+      // runner can neither push through the wall nor drift off it.
+      const slid = wallSlideVelocity(
+        runner.velocity.x,
+        runner.velocity.z,
+        runner.wallNormal.nx,
+        runner.wallNormal.nz,
+        WALL_LATERAL_SPEED
+      );
+      runner.velocity.x = slid.vx;
+      runner.velocity.z = slid.vz;
+    } else if (v.mode === 'wall') {
+      // Attached but no face on record (scope's scripted wall before its normal
+      // is published). Fall back to the old behaviour rather than moving on an
+      // unconstrained velocity.
       runner.velocity.x = 0;
       runner.velocity.z = 0;
     }

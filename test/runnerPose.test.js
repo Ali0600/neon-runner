@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { createRunner } from '../src/runner.js';
+import { WALL_LATERAL_SPEED } from '../src/constants.js';
 
 // params.js reads window.devicePixelRatio at module load, so it cannot be
 // imported here — the fixture lists only what the runner actually touches.
@@ -30,9 +31,9 @@ const defaults = {
 
 const DT = 1 / 60;
 
-function makeRunner(over = {}) {
+function makeRunner(over = {}, city = []) {
   const params = { ...defaults, autopilot: true, holdSpeed: true, holdSpeedValue: 14, ...over };
-  return { runner: createRunner(params, []), params };
+  return { runner: createRunner(params, city), params };
 }
 
 // `jump` is the HELD flag the FSM reads. A glide needs it down every frame:
@@ -132,5 +133,142 @@ describe('the runner pose in a hand-jet glide', () => {
     expect(runner.bodyMeshes[2].parent.rotation.z).not.toBe(0);
     driveIn(runner, 'ground', 10, 1);
     expect(runner.bodyMeshes[2].parent.rotation.z).toBe(0);
+  });
+});
+
+describe('steering while climbing a wall', () => {
+  // One building centred at the origin. The runner mounts its +x face, whose
+  // outward normal is +x, so the tangent is the z axis.
+  //
+  // The face is LONG (hd 40) on purpose. On a 4-deep building the slide reaches
+  // the corner in well under a second, nearestFace snaps to the adjacent face,
+  // and the velocity that was tangent to the old one is entirely normal to the
+  // new one — so the runner stops. That is correct behaviour (see the corner
+  // test below), but measuring the slide against it reports the corner distance
+  // rather than the slide speed, which is what a first pass here did.
+  const CITY = [{ x: 0, z: 0, hw: 4, hd: 40, h: 40 }];
+  const SHORT_CITY = [{ x: 0, z: 0, hw: 4, hd: 4, h: 40 }];
+
+  // Camera behind the runner looking AT the +x face: forward is -x, so a strafe
+  // maps to the z axis, which is this face's tangent. Getting this wrong is easy
+  // and silent — at cameraYaw 0 the strafe points along the face NORMAL, the
+  // projection correctly removes all of it, and the test reads as "sliding is
+  // broken" while measuring a push into the wall.
+  const CAM_YAW = Math.PI / 2;
+
+  /** Drive the runner with a fixed camera-relative strafe, holding jump. */
+  function climb(runner, strafe, frames) {
+    const path = [];
+    for (let k = 0; k < frames; k++) {
+      runner.update(DT, k * DT, { ...input(true), moveVec: { x: strafe, y: 0 } }, CAM_YAW);
+      path.push({
+        x: runner.position.x,
+        y: runner.position.y,
+        z: runner.position.z,
+        mode: runner.vertical.mode,
+      });
+    }
+    return path;
+  }
+
+  /**
+   * Put the runner on the +x face, running, with jump held. autopilot must be
+   * OFF: it drives direction itself and would ignore the strafe entirely, which
+   * would leave every assertion below measuring the autopilot's path.
+   */
+  function mounted(over = {}, city = CITY) {
+    const { runner } = makeRunner({ glideFx: 'streak', autopilot: false, ...over }, city);
+    runner.position.set(4 + 0.45, 2, 0); // BODY_RADIUS outside the face
+    runner.vertical = { mode: 'wall', y: 2, vy: 20, wallTop: 40 };
+    runner.wallNormal = { nx: 1, nz: 0, top: 40, dist: 0 };
+    return runner;
+  }
+
+  it('slides along the face when steered', () => {
+    // The reported complaint: this used to creep at a seventh of the commanded
+    // speed because the velocity was zeroed every frame.
+    const runner = mounted();
+    const path = climb(runner, 1, 60);
+    // Measured, not estimated: the old zero-pin moved 1.95 units in this second
+    // (one frame of ACCEL easing, wiped and restarted every frame); the
+    // projection moves ~9.5 as the slide converges on WALL_LATERAL_SPEED. A
+    // threshold of 5 sits between them with room on both sides.
+    const moved = Math.abs(path[path.length - 1].z - path[0].z);
+    expect(moved).toBeGreaterThan(5);
+  });
+
+  it('keeps its distance from the face while sliding', () => {
+    // The half the old zero-pin got right, and the half that must survive:
+    // steering must not push the runner into or off the wall.
+    const runner = mounted();
+    const path = climb(runner, 1, 60);
+    const onWall = path.filter((p) => p.mode === 'wall');
+    expect(onWall.length).toBeGreaterThan(30);
+    for (const p of onWall) expect(p.x).toBeCloseTo(4 + 0.45, 3);
+  });
+
+  it('still climbs while sliding', () => {
+    const runner = mounted();
+    const path = climb(runner, 1, 60);
+    expect(path[path.length - 1].y).toBeGreaterThan(path[0].y + 5);
+  });
+
+  it('slides the other way when steered the other way', () => {
+    const a = mounted();
+    const b = mounted();
+    const za = climb(a, 1, 45).at(-1).z;
+    const zb = climb(b, -1, 45).at(-1).z;
+    expect(Math.sign(za)).toBe(-Math.sign(zb));
+  });
+
+  it('stays put on the face with no steering input', () => {
+    // A climb with no key held must still go straight up — the slide is opt-in.
+    const runner = mounted();
+    const path = climb(runner, 0, 60);
+    expect(Math.abs(path.at(-1).z - path[0].z)).toBeLessThan(0.5);
+    expect(path.at(-1).x).toBeCloseTo(4 + 0.45, 3);
+  });
+
+  it('cannot be pulled off the face by steering away from it', () => {
+    // Peeling off is what RELEASING the key means; steering away must not do it.
+    // This is what the pre-integration projection guards: without it the frame
+    // integrates on a velocity carrying an outward component, the runner drifts
+    // out of the face's reach, and the climb ends by itself. The post-FSM
+    // projection alone does not cover this — it fixes the velocity only AFTER
+    // the position has already moved.
+    const runner = mounted();
+    const path = [];
+    for (let k = 0; k < 60; k++) {
+      // moveVec.y = -1 with the camera facing the wall points straight away.
+      runner.update(DT, k * DT, { ...input(true), moveVec: { x: 0, y: -1 } }, CAM_YAW);
+      path.push({ x: runner.position.x, mode: runner.vertical.mode });
+    }
+    expect(path.at(-1).mode).toBe('wall');
+    for (const p of path) expect(p.x).toBeCloseTo(4 + 0.45, 3);
+  });
+
+  it('slides to the end of a face and stops there, still attached', () => {
+    // Reaching a corner snaps the face normal to the next side, and the velocity
+    // that was tangent to the old face is entirely normal to the new one — so
+    // the slide stops rather than carrying the runner around or off. Pinned
+    // because it is a real edge a player will hit, and because it is what makes
+    // the slide measurement above need a long face.
+    const runner = mounted({}, SHORT_CITY);
+    const path = climb(runner, 1, 90);
+    const end = path.at(-1);
+    expect(end.mode).toBe('wall'); // still climbing, not dropped
+    // Stops at the corner plus the body radius — 4.53 measured, not past it.
+    expect(Math.abs(end.z)).toBeLessThan(5);
+    // And it really did stop: the last ten frames barely move.
+    expect(Math.abs(end.z - path.at(-10).z)).toBeLessThan(0.05);
+  });
+
+  it('caps the slide, so a diagonal climb stays a climb', () => {
+    const runner = mounted();
+    const path = climb(runner, 1, 90);
+    const onWall = path.filter((p) => p.mode === 'wall');
+    const dz = Math.abs(onWall.at(-1).z - onWall[0].z);
+    const dt = (onWall.length - 1) * DT;
+    expect(dz / dt).toBeLessThanOrEqual(WALL_LATERAL_SPEED + 0.5);
   });
 });
