@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { stepVertical, initialVertical } from '../src/vertical.js';
+import { stepVertical, initialVertical, wallSlideVelocity } from '../src/vertical.js';
 import {
   GRAVITY,
   JUMP_VELOCITY,
@@ -8,6 +8,7 @@ import {
   CREST_BOOST,
   GLIDE_SINK_SPEED,
   GLIDE_MIN_FALL_SPEED,
+  WALL_LATERAL_SPEED,
 } from '../src/constants.js';
 
 const DT = 1 / 60;
@@ -357,6 +358,79 @@ describe('stepVertical — glide', () => {
       held({ wallTop: 30, groundSpeed: WALL_MIN_SPEED - 1 })
     );
     expect(s.mode).toBe('glide');
+  });
+});
+
+describe('wallSlideVelocity', () => {
+  const MAX = WALL_LATERAL_SPEED;
+  // A face whose outward normal points along -x, i.e. the runner is climbing the
+  // building's +x side. Its tangent is therefore the z axis.
+  const N = { nx: -1, nz: 0 };
+  const slide = (vx, vz, n = N, max = MAX) => wallSlideVelocity(vx, vz, n.nx, n.nz, max);
+
+  it('drops velocity pushed straight into the wall', () => {
+    // Holding forward against a face cannot move you through it. This is the
+    // half the old zero-pin got right.
+    expect(slide(-8, 0)).toMatchObject({ vx: 0, vz: 0 });
+  });
+
+  it('drops velocity pulled straight away from the wall', () => {
+    // Peeling off is what releasing the key means; it does not belong in the
+    // slide, or a stray backward tap would rip the runner off the building.
+    expect(slide(8, 0)).toMatchObject({ vx: 0, vz: 0 });
+  });
+
+  it('keeps motion along the face at full speed', () => {
+    expect(slide(0, 6)).toMatchObject({ vx: 0, vz: 6 });
+    expect(slide(0, -6)).toMatchObject({ vx: 0, vz: -6 });
+  });
+
+  it('keeps only the tangent of a diagonal push', () => {
+    // The whole point: pressing into the wall AND sideways should still slide.
+    const r = slide(-8, 5);
+    expect(r.vx).toBeCloseTo(0, 12);
+    expect(r.vz).toBeCloseTo(5, 12);
+  });
+
+  it('clamps the slide so a diagonal climb stays a climb', () => {
+    const r = slide(0, MAX * 3);
+    expect(Math.hypot(r.vx, r.vz)).toBeCloseTo(MAX, 12);
+    expect(r.vz).toBeGreaterThan(0); // direction survives the clamp
+  });
+
+  it('leaves a slide under the cap untouched', () => {
+    const under = MAX * 0.4;
+    expect(slide(0, under).vz).toBeCloseTo(under, 12);
+  });
+
+  it('handles a snapped corner normal', () => {
+    // nearestFace snaps corner approaches to an axis, so the normal is always
+    // one of four unit vectors — but the maths must not assume which.
+    const r = wallSlideVelocity(3, 4, 0, 1, MAX);
+    expect(r.vz).toBeCloseTo(0, 12);
+    expect(r.vx).toBeCloseTo(3, 12);
+  });
+
+  it('returns zero for zero input, with no division by zero', () => {
+    const r = slide(0, 0);
+    expect(r.vx).toBe(0);
+    expect(r.vz).toBe(0);
+    expect(Number.isFinite(r.vx) && Number.isFinite(r.vz)).toBe(true);
+  });
+
+  it('survives a zero cap without producing NaN', () => {
+    const r = slide(0, 5, N, 0);
+    expect(r.vx).toBe(0);
+    expect(r.vz).toBe(0);
+  });
+
+  it('is a fixed point: projecting an already-projected velocity changes nothing', () => {
+    // Called every frame on the runner's own velocity, so it has to be
+    // idempotent or a held key would decay across frames.
+    const once = slide(-8, 5);
+    const twice = slide(once.vx, once.vz);
+    expect(twice.vx).toBeCloseTo(once.vx, 12);
+    expect(twice.vz).toBeCloseTo(once.vz, 12);
   });
 });
 

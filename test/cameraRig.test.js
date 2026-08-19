@@ -149,3 +149,33 @@ describe('the follow rig — gliding lifts the camera', () => {
     expect(() => settle(rig, r, input())).not.toThrow();
   });
 });
+
+describe('the follow rig — a wall climb holds its heading', () => {
+  // Sliding along a face carries real horizontal speed now, and the rig re-aims
+  // yaw above 1.0. Without a guard the camera would swing to look ALONG the
+  // building instead of up it, exactly when the player needs to see the climb.
+  const moving = (mode) => ({
+    position: new THREE.Vector3(0, 10, 0),
+    velocity: new THREE.Vector3(8, 0, 0),
+    speed: 8,
+    groundSpeed: 8,
+    dissolve: 0.5,
+    vertical: { mode },
+  });
+
+  it('does not re-aim while attached to a wall', () => {
+    const rig = build();
+    const before = rig.yaw;
+    for (let k = 0; k < 240; k++) rig.update(DT, moving('wall'), input());
+    expect(rig.yaw).toBe(before);
+  });
+
+  it('DOES re-aim on the ground at the same speed', () => {
+    // The contrast case. Without it the test above passes for a rig that never
+    // re-aims at all, which would be a different bug wearing the same green.
+    const rig = build();
+    const before = rig.yaw;
+    for (let k = 0; k < 240; k++) rig.update(DT, moving('ground'), input());
+    expect(rig.yaw).not.toBe(before);
+  });
+});
