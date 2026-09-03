@@ -298,51 +298,42 @@ confirming the expected commit is in it, not checking a status code.
 ## Experience Gained
 
 - Designed and implemented a GPU-accelerated particle engine rendering 65k
-  instanced primitives in a single draw call, sustaining 140+ fps at a 4-megapixel
-  render target by moving per-particle integration from CPU to vertex shader.
-- Reduced per-frame buffer bandwidth by ~99% (2.4 MB → 7 KB) by replacing
-  full-attribute uploads with a ring-buffer allocator and partial GPU buffer
-  range updates.
-- Authored custom GLSL shaders for velocity-aligned billboard stretching,
-  noise-threshold mesh dissolve, and camera-facing ribbon generation.
-- Built a deterministic headless verification harness for a browser render loop,
-  driving fixed-timestep frames and asserting frame-level invariants — after
-  diagnosing that background-tab rAF throttling made conventional testing
-  silently report false results.
-- Diagnosed and fixed a state-consistency defect where simulation components ran
-  on the wall clock instead of the scaled simulation clock, proven by a
-  pixel-identity assertion across frozen frames.
-- Profiled and tuned a real-time render pipeline against measured frame timings
-  with GPU synchronization, rather than estimated throughput.
-- Built a CI/CD pipeline on GitHub Actions with least-privilege scoped
-  permissions, dependency caching, and a deployment job gated on the test and
-  build stages, publishing a live demo to GitHub Pages on every merge.
-- Validated the pipeline adversarially — confirmed the required check fails on a
-  red suite before trusting a green one, and verified each release by asserting
-  the deployed commit SHA is present in the served bundle rather than relying on
-  an HTTP status code.
-- Isolated game rules into dependency-free pure modules (seeded PRNG placement,
-  swept-segment collision, framerate-independent combo decay) to make gameplay
-  behaviour unit-testable without a renderer, and identified a frame-rate-
-  dependent collision defect by writing the failing case before the fix.
-- Implemented a second GPGPU compute pipeline using ping-pong float render
-  targets, enabling state-dependent physics (path vortex, attractor, spatial
+  instanced primitives in a single draw call, sustaining 140+ fps at a
+  4-megapixel render target by moving per-particle integration from CPU to
+  vertex shader - then a second GPGPU pipeline over ping-pong float render
+  targets for state-dependent physics (path vortex, attractor, spatial
   turbulence) impossible in the closed-form engine, with per-frame spawn
   injection that uploads only newly created particles.
-- Refactored two rendering back ends onto shared GLSL modules and a shared
-  spawn-scheduling module so the implementations cannot diverge, and benchmarked
-  both to quantify the trade — establishing that fixed-size GPU simulation costs
-  2× at half occupancy but only 14% at full.
-- Diagnosed and fixed a projection-dependent shader defect in which
-  velocity-aligned billboards derived the camera direction from a
-  perspective-only assumption, and proved the fix with a camera-dolly
-  frame-identity assertion that is demonstrably red against the prior formula.
-- Designed a scripted event-injection harness as a stateless pure function of
-  simulation time, making a real-time visual effect reproducible, freezable and
-  unit-testable without a renderer — and caught a floating-point boundary defect
-  in it that would have surfaced as an intermittent visual glitch.
-- Built an instrumentation layer over two dissimilar GPU back ends — CPU
-  re-evaluation of a closed form for one, throttled asynchronous GPU texture
-  readback for the other — surfacing per-metric provenance in the UI rather than
-  presenting sampled and exact figures as equivalent, and cross-validated the two
-  independent paths against a closed-form prediction.
+- Reduced per-frame buffer bandwidth by ~99% (2.4 MB -> 7 KB) with a ring-buffer
+  allocator and partial GPU buffer range updates, and refactored both back ends
+  onto shared GLSL and spawn-scheduling modules so they cannot diverge -
+  benchmarking them to quantify the trade: fixed-size GPU simulation costs 2x at
+  half occupancy but only 14% at full.
+- Authored custom GLSL shaders for velocity-aligned billboard stretching, noise-
+  threshold mesh dissolve and camera-facing ribbon generation; diagnosed a
+  projection-dependent billboard defect (the camera direction derived from a
+  perspective-only assumption) and proved the fix with a camera-dolly frame-
+  identity assertion that is demonstrably red against the prior formula.
+- Built a deterministic headless verification harness for a browser render loop
+  - fixed-timestep frames, frame-level invariants, pixel-identity across frozen
+  frames - after diagnosing that background-tab rAF throttling made conventional
+  testing silently report false results; it caught simulation components running
+  on the wall clock instead of the scaled clock, and a floating-point boundary
+  defect in a scripted event-injection scheduler written as a pure function of
+  simulation time.
+- Profiled and tuned the pipeline against measured frame timings with GPU
+  synchronization rather than estimated throughput, and built an instrumentation
+  layer over two dissimilar back ends (CPU re-evaluation of a closed form for
+  one, throttled asynchronous GPU texture readback for the other) that surfaces
+  per-metric provenance in the UI rather than presenting sampled and exact
+  figures as equivalent, cross-validating both against a closed-form prediction.
+- Isolated game rules into dependency-free pure modules (seeded PRNG placement,
+  swept-segment collision, framerate-independent combo decay) so gameplay is
+  unit-testable without a renderer, and identified a frame-rate-dependent
+  collision defect by writing the failing case before the fix.
+- Built a CI/CD pipeline on GitHub Actions with least-privilege permissions,
+  dependency caching and a Pages deploy gated on the test and build stages on
+  every merge - validated adversarially: the required check proven to fail on a
+  red suite before a green one was trusted, and every release verified by
+  asserting the deployed commit SHA is present in the served bundle rather than
+  relying on an HTTP status code.
