@@ -2,16 +2,17 @@
 
 **[▶ Live demo](https://ali0600.github.io/neon-runner/)**
 
-A stylized real-time particle system in Three.js, inspired by the neon run in
-*inFamous: Second Son*. Sprint, and the figure erodes into tens of thousands of
-magenta and cyan light streaks trailing a glowing ribbon behind it.
+A real-time particle effect built in Three.js, inspired by the neon run in
+*inFamous: Second Son*. Sprint, and the figure breaks apart into tens of
+thousands of magenta and cyan light streaks, trailing a glowing ribbon behind it.
 
 ```bash
 npm install
 npm run dev
 ```
 
-Then open http://localhost:5173. The panel on the right retunes everything live.
+Then open http://localhost:5173. Use the panel on the right to change any setting
+while it runs.
 
 ## Controls
 
@@ -27,106 +28,108 @@ Then open http://localhost:5173. The panel on the right retunes everything live.
 | **T** | fire one SCOPE event immediately, to watch a single transient |
 | **.** | step one frame while paused |
 
-Two things worth knowing, because neither is obvious from the panel:
+Two things the panel does not make obvious:
 
-- **SCOPE view** is the `SCOPE VIEW` checkbox in the **Scope** folder, second from the
-  bottom of the panel. It lays the effect out along a straight line for inspection.
-- **If the sim seems stuck**, the time scrub pauses it by design. Return the scrub to 0,
-  press **▶ resume** in the Scope folder, or set `time scale` back to 1 in **Sim**.
+- **SCOPE view** is the `SCOPE VIEW` checkbox in the **Scope** folder, second from
+  the bottom of the panel. It spreads the effect along a straight line so you can
+  inspect it.
+- **If the sim looks stuck**, the time scrub has paused it, by design. Drag the
+  scrub back to 0, press **▶ resume** in the Scope folder, or set `time scale`
+  back to 1 in **Sim**.
 
 ## Features
 
 - **Two sprint looks, switchable live.** The `SPRINT FX` dropdown at the top of
-  the panel picks between the continuous **plume**, inFamous-style
-  **afterimages** (the default), or **both**. Afterimages leave a chain of the runner's own
-  pose behind it — each one a real snapshot of the figure at that instant, the
-  ten body matrices copied straight off the live body, so the lean, the bob and
-  the wall-climb orientation all come along for free. Each is born already
-  half-converted into light: the matter erosion takes off it is redrawn as
-  particles flying outward, and while those particles have barely moved they
-  still hold the body's shape, so a fresh afterimage is a **solid, luminous
-  figure** rather than an empty silhouette. From there it comes apart — a
-  scattering cloud, feet first, cooling from cyan to magenta — and thins to dust
-  down the trail, because the chain lays a ghost's life out along the ground, so
-  when it disintegrates is also where. The
-  sparks are the *complement* of the surviving silhouette — the same geometry
-  drawn a second time as points, visible exactly where the mesh has given that
-  matter up, so the conversion is exact rather than two effects timed to match.
-  Selecting `afterimages` stops the plume at its source rather than hiding it,
-  so live particles age out naturally and the readouts keep telling the truth;
-  the takeoff, landing and pickup bursts stay in every mode. Four extra light
-  ribbons trail from the hands and feet, tracing the real arcs the limbs swing
-  through — the same ribbon the chest trail uses, fed from the limb tips.
-- **Jump, and the neon wall-run.** Tap Space to jump; hold it while running at a
-  building and the runner goes **straight up the wall** at 20 u/s — faster than
-  its own sprint — crests over the lip and lands on the roof, where it can keep
+  the panel picks the continuous **plume**, inFamous-style **afterimages** (the
+  default), or **both**. Afterimages leave a chain of the runner's own poses
+  behind it. Each one is a real snapshot of the figure at that instant — the ten
+  body matrices copied straight off the live body — so the lean, the bob and the
+  wall-climb orientation all come along for free. Each is born already half
+  turned into light: the matter the erosion takes off it is redrawn as particles
+  flying outward, and those particles have barely moved, so they still hold the
+  body's shape. A fresh afterimage is a **solid, luminous figure** rather than an
+  empty silhouette. From there it comes apart — a scattering cloud, feet first,
+  cooling from cyan to magenta — and thins to dust down the trail. The chain lays
+  a ghost's life out along the ground, so where it breaks up is also when. The
+  sparks are the *opposite* of the surviving silhouette: the same geometry drawn
+  a second time as points, visible exactly where the mesh has given that matter
+  up. The conversion is therefore exact, not two effects timed to match.
+  Selecting `afterimages` stops the plume at its source rather than hiding it, so
+  live particles age out naturally and the readouts keep telling the truth. The
+  takeoff, landing and pickup bursts stay in every mode. Four extra light ribbons
+  trail from the hands and feet, tracing the real arcs the limbs swing through —
+  the same ribbon the chest trail uses, fed from the limb tips.
+- **Jump, and the neon wall-run.** Tap Space to jump. Hold it while running at a
+  building and the runner goes **straight up the wall** at 20 u/s, faster than
+  its own sprint. It crests over the lip and lands on the roof, where it keeps
   running until it steps off an edge. **You can steer the climb**: strafing
-  slides the runner along the face at up to 10 u/s, so a climb can cut a
-  diagonal across a building instead of a straight vertical line. The velocity
-  is projected onto the plane of the wall rather than zeroed, so steering into
-  the face does nothing and steering away cannot pull you off — releasing Space
-  is still the only way down. Reaching a corner stops the slide and leaves you
-  climbing. Modelled on *Second Son*'s Light Speed,
-  which turns vertical without slowing down. The whole vertical axis is a
-  four-state machine in a dependency-free module, so every transition is unit
-  tested, and it advances only on the sim clock — at `timeScale = 0` a runner
-  frozen mid-climb, mid-fall, mid-glide or on a roof renders bit-identical
-  frames. Takeoff kicks a burst downward, landing splashes one outward, and
-  while climbing the rise bias inverts so the plume trails **down** the wall
-  behind you.
-- **The neon glide.** Keep holding Space as you fall and the drop catches: the
-  descent pins to a slow sink while a neon jet fires **downward** and billows
-  out beneath the figure, so a step off a roof becomes a drift across the city.
-  It deploys only once you are actually falling, so a jump's arc still plays out
-  — and a wall in reach always outranks it, because arriving at a wall from a
-  descent is how you reach one. The jet reuses the wall-run's aiming seam rather
-  than adding a second one, and the emission holds a floor while gliding, so the
-  plume cannot thin out over the seconds it is meant to be holding you up. The
-  camera **swings up and back** for the duration, to roughly a 37° look-down:
-  at the normal follow height you stare edge-on through the jet and the whole
-  thing reads as one white blob, where from above the figure and the light
-  billowing beneath it are two separate things. Drag still works while it does.
-- **`GLIDING FX`**, directly under `SPRINT FX`, picks what the glide looks like
-  independently of the sprint. **hands** (the default) fires the jet out of the
+  slides the runner along the face at up to 10 u/s, so a climb can cut a diagonal
+  across a building instead of a straight vertical line. The velocity is
+  projected onto the plane of the wall rather than zeroed, so steering into the
+  face does nothing and steering away cannot pull you off. Releasing Space is
+  still the only way down. Reaching a corner stops the slide and leaves you
+  climbing. It is modelled on *Second Son*'s Light Speed, which turns vertical
+  without slowing down. The whole vertical axis is a four-state machine in a
+  module with no dependencies, so every transition is unit tested. It advances
+  only on the sim clock: at `timeScale = 0` a runner frozen mid-climb, mid-fall,
+  mid-glide or on a roof renders bit-identical frames. Takeoff kicks a burst
+  downward, landing splashes one outward, and while you climb the rise bias
+  inverts, so the plume trails **down** the wall behind you.
+- **The neon glide.** Keep holding Space as you fall and the drop catches. The
+  descent pins to a slow sink while a neon jet fires **downward** and billows out
+  beneath the figure, so a step off a roof becomes a drift across the city. It
+  deploys only once you are actually falling, so a jump's arc still plays out. A
+  wall in reach always outranks it, because arriving at a wall from a descent is
+  how you reach one. The jet reuses the wall-run's aiming seam rather than adding
+  a second one, and the emission holds a floor while you glide, so the plume
+  cannot thin out over the seconds it is meant to be holding you up. The camera
+  **swings up and back** for the duration, to roughly a 37° look-down. At the
+  normal follow height you stare edge-on through the jet and the whole thing
+  reads as one white blob; from above, the figure and the light billowing beneath
+  it are two separate things. Drag still works while it does.
+- **`GLIDING FX`**, directly under `SPRINT FX`, picks what the glide looks like,
+  separately from the sprint. **hands** (the default) fires the jet out of the
   **palms** and holds the arms in a thrust pose, so the light reads as the thing
   keeping you up rather than something leaking off a figure that happens to be
   falling. The whole figure holds still — arms in a thrust pose, legs at a fixed
-  trailing angle, since a running cycle under a hover reads as pedalling in
-  mid-air — and the ribbons move to the palms: the chest trail and the foot
-  streaks go quiet, the two **hand** ribbons run, so the light trails from where
-  it is coming out rather than off your back. New afterimage captures pause too;
-  ghosts already in the air finish their fade rather than popping.
-  **streak** keeps whatever the sprint FX was doing. Note the interaction the
-  default forces: `afterimages` stops the plume *at its source*, and the jet is
-  made of plume particles, so hands mode bypasses that gate — narrowly, only
-  while actually gliding.
-- **A solid city.** 70 instanced buildings — 8 towers inside the play field and
-  a 62-building skyline beyond — laid out from a seeded PRNG so the world is
-  identical every load, and rendered in one draw call as dark slabs with lit
+  trailing angle — since a running cycle under a hover reads as pedalling in
+  mid-air. The ribbons move to the palms: the chest trail and the foot streaks go
+  quiet, the two **hand** ribbons run, so the light trails from where it is
+  coming out rather than off your back. New afterimage captures pause too, and
+  ghosts already in the air finish their fade rather than popping. **streak**
+  keeps whatever the sprint FX was doing. Note the interaction the default
+  forces: `afterimages` stops the plume *at its source*, and the jet is made of
+  plume particles, so hands mode bypasses that gate — narrowly, only while you
+  are actually gliding.
+- **A solid city.** 70 instanced buildings — 8 towers inside the play field and a
+  62-building skyline beyond — laid out from a seeded PRNG, so the world is
+  identical every load. They render in one draw call as dark slabs with lit
   window grids, corner seams and a bright roofline. They are real geometry, not
-  backdrop: the runner collides with them and the camera pulls in along its
+  backdrop: the runner collides with them, and the camera pulls in along its
   sightline rather than clipping through. One layout array is shared by the
   renderer, the collision and the camera, so the city you see is the city you
   hit.
-- **Two switchable particle engines.** **Analytic** derives each particle's
-  position from a closed form of its age — exact pause and scrub, cost
-  proportional to what is alive. **GPGPU** integrates position and velocity in
-  ping-pong float textures, which buys feedback forces the closed form cannot
-  express: a **vortex** spiralling around the runner's recent path, spatial
-  **turbulence**, and a **regather** that pulls shed light back in when the
-  runner stops. Both share the fragment shader, the billboard maths, and the
-  spawn scheduling, so only the position source differs.
-- **SCOPE view** — a lab mode that lays the effect out along a straight lane so
-  it reads like a waveform trace: the runner travels in a line, the plume
-  streams out behind it horizontally, and the camera locks side-on in either
-  **orthographic** (no perspective distortion, so a streak at the edge measures
-  the same as one at centre) or perspective. Because a straight line only ever
-  shows steady state, a scripted scheduler injects the transients — turns,
-  sprint pulses, full stops — with `T` firing one on demand in isolation.
-  Comes with a stripped backdrop, a world-unit ruler, live readouts that label
+- **Two switchable particle engines.** **Analytic** works out each particle's
+  position from a formula over its age — exact pause and scrub, and a cost that
+  scales with how many particles are alive. **GPGPU** (running general-purpose
+  work on the graphics card) steps position and velocity forward in ping-pong
+  float textures, which buys feedback forces the formula cannot express: a
+  **vortex** spiralling around the runner's recent path, spatial **turbulence**,
+  and a **regather** that pulls shed light back in when the runner stops. Both
+  share the fragment shader (the small GPU program that colours each pixel), the
+  billboard maths that turns every particle to face the camera, and the spawn
+  scheduling. Only the position source differs.
+- **SCOPE view** — a lab mode that lays the effect out along a straight lane, so
+  it reads like a waveform trace. The runner travels in a line, the plume streams
+  out behind it horizontally, and the camera locks side-on in either
+  **orthographic** or perspective. Orthographic drops the perspective distortion,
+  so a streak at the edge measures the same as one at centre. A straight line
+  only ever shows steady state, so a scripted scheduler injects the transients —
+  turns, sprint pulses, full stops — with `T` firing one on demand in isolation.
+  It comes with a stripped backdrop, a world-unit ruler, live readouts that label
   which numbers are exact and which are sampled, and a time scrub (`.` steps one
-  frame) that is reversible to the exact frame in the analytic engine and
-  honestly disabled in the GPGPU one.
+  frame) that reverses to the exact frame in the analytic engine and is honestly
+  disabled in the GPGPU one.
   **Jumps and wall runs are scheduled events too** — the lane grows a wall, the
   camera follows the runner's height, and the ruler's vertical scale tracks the
   band on screen instead of staying pinned to the ground. A side-on view already
@@ -134,24 +137,26 @@ Two things worth knowing, because neither is obvious from the panel:
   `T` fires from **trigger kind** to watch one in isolation.
 - **Speed lock** (`HOLD SPEED` in the Sim folder) — pins the runner to a constant
   speed from 0 to 30 u/s, past the game's own sprint of 17. It overrides
-  magnitude only, so scope turns still steer while the speed stays flat; the
-  controls it supersedes grey out rather than silently doing nothing. Locking the
-  motion means the only thing changing while you tune is the setting you drag.
-- **Ambient scoring loop** — glowing rings scattered across the field, collected
-  by running through them, each firing a 260-particle burst through the same
-  ring buffer as the runner's emission. A combo multiplier climbs while
-  sprinting and decays when you slow; best combo and lifetime score persist to
-  `localStorage`. Collection is swept along the path travelled, not sampled at
-  the frame position, so nothing is missed at sprint speed.
-- **Two switchable styles** — **neon** (magenta/cyan light streaks) and
-  **smoke** (orange embers with normal-blended grey wisps), swapped live from
-  the panel. Both run on one emitter and one buffer: particle kinds are
-  compile-time `defines` over a shared shader pair, and smoke mode splits the
-  same instances between an additive ember pass and a normal-blended smoke pass.
-- **Analytic GPU particle engine** — 65,536-particle capacity; each particle's
-  position is a closed-form function of its age, evaluated in the vertex shader.
-  The CPU writes only newly spawned slots.
-- **Velocity-aligned stretched billboards** — streaks orient and lengthen along
+  magnitude only, so scope turns still steer while the speed stays flat, and the
+  controls it supersedes grey out rather than silently doing nothing. Lock the
+  motion and the only thing changing while you tune is the setting you drag.
+- **Ambient scoring loop** — glowing rings sit scattered across the field. Run
+  through one to collect it, and it fires a 260-particle burst through the same
+  ring buffer as the runner's emission (a ring buffer is a fixed block of memory
+  that writes reuse from the start once they reach the end). A combo
+  multiplier climbs while you sprint and decays when you slow, and best combo and
+  lifetime score persist to `localStorage`. Collection is swept along the path
+  travelled, not sampled at the frame position, so nothing is missed at sprint
+  speed.
+- **Two switchable styles** — **neon** (magenta and cyan light streaks) and
+  **smoke** (orange embers with normal-blended grey wisps), swapped live from the
+  panel. Both run on one emitter and one buffer: particle kinds are compile-time
+  `defines` over a shared shader pair, and smoke mode splits the same instances
+  between an additive ember pass and a normal-blended smoke pass.
+- **Analytic GPU particle engine** — 65,536-particle capacity. Each particle's
+  position is a formula over its age, worked out in the vertex shader. The CPU
+  writes only newly spawned slots.
+- **Velocity-aligned stretched billboards** — streaks turn and lengthen along
   their direction of travel, which is what makes them read as light rather than
   as dots.
 - **Ring-buffer emitter with partial uploads** — roughly 7 KB of buffer traffic
@@ -159,15 +164,15 @@ Two things worth knowing, because neither is obvious from the panel:
 - **Particles emitted from the figure's joints** — light comes off the hands,
   knees, torso and head, not from an abstract box.
 - **Noise-dissolve character** — a hash-based value-noise threshold erodes the
-  runner from the feet upward, synchronized with the emission rate so the body
+  runner from the feet upward, in step with the emission rate, so the body
   visibly *becomes* the light.
 - **Camera-facing trail ribbon** — a continuous light core that particles alone
   cannot provide at sprint speed.
 - **Distance-driven run cycle** — stride phase advances with distance travelled,
   so the gait always matches ground speed instead of sliding or mincing.
-- **True pause and slow-motion** — `timeScale` scales a separate sim clock;
-  at zero the frame is pixel-identical between renders while the camera stays
-  live so you can orbit frozen streaks.
+- **True pause and slow-motion** — `timeScale` scales a separate sim clock. At
+  zero the frame is pixel-identical between renders, while the camera stays live
+  so you can orbit frozen streaks.
 - **UnrealBloom post chain** and a full live-tuning panel (emission, palette,
   streak geometry, trail, bloom, pixel ratio, time scale).
 
@@ -178,10 +183,10 @@ Measured on a 2560×1600 buffer at device pixel ratio 2:
 | analytic | 311 fps | 151 fps |
 | gpgpu | 152 fps | 130 fps |
 
-The GPGPU engine costs roughly double at 30k but only ~14% more at 65k, because
-its compute pass always covers all 65,536 texels regardless of how many
-particles are active — it pays full simulation price for a partly empty buffer,
-while the analytic engine pays only for what is alive.
+The GPGPU engine costs roughly double at 30k but only ~14% more at 65k. Its
+compute pass always covers all 65,536 texels, however many particles are active,
+so it pays the full simulation price for a partly empty buffer, while the
+analytic engine pays only for what is alive.
 
 ## Layout
 
@@ -218,23 +223,23 @@ trying; `docs/learnings.md` covers the transferable concepts.
 npm test
 ```
 
-179 tests over the pure modules:
+299 tests over the pure modules:
 
 - **the vertical state machine** — every transition between ground, air and
-  wall; a jump that returns to exactly its launch height; an apex that matches
-  the constants minus one step of Euler error; `crest` and `land` each firing
-  exactly once; a runner that does *not* grab a wall it is falling past with the
-  key released; and `simDt = 0` as a fixed point in all three modes, which pins
+  wall. A jump that returns to exactly its launch height. An apex that matches
+  the constants minus one step of Euler error. `crest` and `land` each firing
+  exactly once. A runner that does *not* grab a wall it is falling past with the
+  key released. And `simDt = 0` as a fixed point in all three modes, which pins
   the freeze invariant at the unit level rather than only in the browser.
 
 - **collection reach** — a runner at ring height collects; the same runner
   twenty units up the wall above it does not, since the sweep is XZ-only and
   cannot see height at all.
-- **city layout and queries** — a deterministic world for a seed (and a
+- **city layout and queries** — a deterministic world for a seed, and a
   *different* one for a different seed, so the determinism test cannot pass
-  vacuously), every pickup and the whole autopilot lane left clear, no two
-  footprints overlapping, roof heights at the exact footprint boundary, wall
-  normals snapped to a flat face, and a camera sightline that stops in front of
+  vacuously. Every pickup and the whole autopilot lane left clear. No two
+  footprints overlapping. Roof heights at the exact footprint boundary. Wall
+  normals snapped to a flat face. And a camera sightline that stops in front of
   a building rather than behind it.
 
 - **ring buffer ranges** — wraparound, exact boundaries, oversized writes, and
@@ -243,24 +248,24 @@ npm test
   clobbers engine-owned settings like capacity or time scale.
 - **game logic** — seeded placement, swept collection, combo growth and decay,
   scoring.
-- **slot/texel mapping** — the GPGPU spawn injection lands on texel centres,
-  never on an edge (ambiguous under nearest filtering) and never outside the
-  clip volume.
+- **slot/texel mapping** — the GPGPU spawn injection lands on texel centres.
+  Never on an edge, which is ambiguous under nearest filtering, and never
+  outside the clip volume.
 - **speed resolution** — precedence between the speed lock, a path driver's
-  request and the walk/sprint flag, including that a commanded zero is a real
-  request rather than an absent one.
-- **scope schedule and lane** — event sequence construction, every kind present
-  by default (so the "drops disabled kinds" test cannot pass vacuously), the jump
-  key released before the segment join, a climb window that closes before
-  touchdown and is still long enough to clear the lane wall, sampling exactly on
-  boundaries (including ones that are not exactly representable in binary),
-  speed and heading continuity across every segment join, and lane wrapping
-  under large overshoot.
+  request and the walk/sprint flag. That includes treating a commanded zero as a
+  real request rather than an absent one.
+- **scope schedule and lane** — event sequence construction. Every kind present
+  by default, so the "drops disabled kinds" test cannot pass vacuously. The jump
+  key released before the segment join. A climb window that closes before
+  touchdown and is still long enough to clear the lane wall. Sampling exactly on
+  boundaries, including ones that are not exactly representable in binary. Speed
+  and heading continuity across every segment join. And lane wrapping under
+  large overshoot.
 
-Every suite is verified fail-first: disabling the wraparound branch turns the
-range tests red, deleting one key from a preset turns the style tests red, and
+Every suite is verified fail-first. Disabling the wraparound branch turns the
+range tests red. Deleting one key from a preset turns the style tests red. And
 the collection tests were written against a point-distance implementation and
-watched to fail on the tunnelling case before the swept version was written.
+watched to fail on the tunnelling case, before the swept version was written.
 
 ### Proving the tests bite
 
@@ -269,71 +274,72 @@ npm run sabotage
 ```
 
 A test that has never failed proves nothing, so this checks mechanically. It
-reintroduces 23 specific defects one at a time — drop a roofline gate, report a
+reintroduces 69 specific defects one at a time — drop a roofline gate, report a
 climbing runner's velocity as zero, let a scope segment command a discontinuous
-speed — runs the whole suite for each, and asserts that the particular test
-written to guard that defect is the one that goes red. Takes about 20 seconds;
-`--only <substring>` narrows it while iterating.
+speed. For each one it runs the whole suite, and asserts that the particular
+test written to guard that defect is the one that goes red. It takes about 20 seconds;
+`--only <substring>` narrows it while you iterate.
 
 Four outcomes are failures rather than skips, because each of them is a way a
 green result can be a lie: the sabotage never applied, it applied but changed
-nothing, the suite stayed green, or the suite ran a *different number* of tests —
-the signature of a sabotage that broke an import, so the file's tests silently
-never ran and the remaining ones passed.
+nothing, the suite stayed green, or the suite ran a *different number* of tests.
+That last one is the signature of a sabotage that broke an import, so the file's
+tests silently never ran and the remaining ones passed.
 
-The file under test routinely holds uncommitted work, so its bytes are
+The file under test routinely holds uncommitted work. So its bytes are
 snapshotted in memory and restored from that, never with `git checkout`, and the
 restore is verified by checksum and repeated from signal handlers.
 
 ## CI/CD
 
-Pull requests run tests and a production build. Merges to `main` run the same
-checks and then deploy to GitHub Pages, with the deploy job gated on the build
-job via `needs:` so publishing waits for checks rather than racing them.
+Pull requests run the tests and a production build. Merges to `main` run the same
+checks and then deploy to GitHub Pages. The deploy job is gated on the build job
+via `needs:`, so publishing waits for the checks rather than racing them.
 
 The deploy stamps its commit SHA into the bundle, because Pages answers unknown
-paths with HTTP 200 — verifying a release means fetching the hashed asset and
-confirming the expected commit is in it, not checking a status code.
+paths with HTTP 200. Verifying a release therefore means fetching the hashed
+asset and confirming the expected commit is in it, not checking a status code.
 
 ## Experience Gained
 
-- Designed and implemented a GPU-accelerated particle engine rendering 65k
-  instanced primitives in a single draw call, sustaining 140+ fps at a
-  4-megapixel render target by moving per-particle integration from CPU to
-  vertex shader - then a second GPGPU pipeline over ping-pong float render
-  targets for state-dependent physics (path vortex, attractor, spatial
-  turbulence) impossible in the closed-form engine, with per-frame spawn
-  injection that uploads only newly created particles.
-- Reduced per-frame buffer bandwidth by ~99% (2.4 MB -> 7 KB) with a ring-buffer
-  allocator and partial GPU buffer range updates, and refactored both back ends
-  onto shared GLSL and spawn-scheduling modules so they cannot diverge -
-  benchmarking them to quantify the trade: fixed-size GPU simulation costs 2x at
-  half occupancy but only 14% at full.
-- Authored custom GLSL shaders for velocity-aligned billboard stretching, noise-
-  threshold mesh dissolve and camera-facing ribbon generation; diagnosed a
-  projection-dependent billboard defect (the camera direction derived from a
-  perspective-only assumption) and proved the fix with a camera-dolly frame-
+- Designed and built a GPU-accelerated particle engine that draws 65k instanced
+  primitives in a single draw call and holds 140+ fps on a 4-megapixel render
+  target, by moving per-particle integration off the CPU and into the vertex
+  shader - then added a second GPGPU pipeline over ping-pong float render targets
+  for state-dependent physics (path vortex, attractor, spatial turbulence) that
+  the closed-form engine cannot express, with per-frame spawn injection that
+  uploads only the newly created particles.
+- Cut per-frame buffer bandwidth by ~99% (2.4 MB -> 7 KB) with a ring-buffer
+  allocator and partial GPU buffer range updates, and moved both back ends onto
+  shared GLSL and spawn-scheduling modules so they cannot drift apart - then
+  benchmarked them to put a number on the trade: fixed-size GPU simulation costs
+  2x at half occupancy but only 14% at full.
+- Wrote custom GLSL shaders for velocity-aligned billboard stretching, noise-
+  threshold mesh dissolve and camera-facing ribbon generation; tracked down a
+  projection-dependent billboard defect, where the camera direction came from a
+  perspective-only assumption, and proved the fix with a camera-dolly frame-
   identity assertion that is demonstrably red against the prior formula.
 - Built a deterministic headless verification harness for a browser render loop
   - fixed-timestep frames, frame-level invariants, pixel-identity across frozen
-  frames - after diagnosing that background-tab rAF throttling made conventional
-  testing silently report false results; it caught simulation components running
+  frames - after finding that background-tab rAF throttling made conventional
+  testing report false results silently; it caught simulation components running
   on the wall clock instead of the scaled clock, and a floating-point boundary
   defect in a scripted event-injection scheduler written as a pure function of
   simulation time.
 - Profiled and tuned the pipeline against measured frame timings with GPU
   synchronization rather than estimated throughput, and built an instrumentation
-  layer over two dissimilar back ends (CPU re-evaluation of a closed form for
-  one, throttled asynchronous GPU texture readback for the other) that surfaces
-  per-metric provenance in the UI rather than presenting sampled and exact
-  figures as equivalent, cross-validating both against a closed-form prediction.
-- Isolated game rules into dependency-free pure modules (seeded PRNG placement,
-  swept-segment collision, framerate-independent combo decay) so gameplay is
-  unit-testable without a renderer, and identified a frame-rate-dependent
+  layer over two very different back ends (CPU re-evaluation of a closed form for
+  one, throttled asynchronous GPU texture readback for the other) that shows in
+  the UI where each metric came from, rather than presenting sampled and exact
+  figures as if they were equivalent, cross-validating both against a closed-form
+  prediction.
+- Isolated the game rules into dependency-free pure modules (seeded PRNG
+  placement, swept-segment collision, framerate-independent combo decay) so
+  gameplay is unit-testable without a renderer, and found a frame-rate-dependent
   collision defect by writing the failing case before the fix.
 - Built a CI/CD pipeline on GitHub Actions with least-privilege permissions,
   dependency caching and a Pages deploy gated on the test and build stages on
-  every merge - validated adversarially: the required check proven to fail on a
-  red suite before a green one was trusted, and every release verified by
-  asserting the deployed commit SHA is present in the served bundle rather than
+  every merge - validated adversarially: the required check was proven to fail on
+  a red suite before a green one was trusted, and every release is verified by
+  asserting the deployed commit SHA is present in the served bundle, rather than
   relying on an HTTP status code.
